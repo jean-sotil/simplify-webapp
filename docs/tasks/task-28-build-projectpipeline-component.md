@@ -2,7 +2,7 @@
 id: TASK-28
 phase: "Phase 3 — Projects Module (Days 3–4)"
 title: "Build ProjectPipeline component"
-status: pending
+status: completed
 ---
 
 # TASK-28 — Build ProjectPipeline component
