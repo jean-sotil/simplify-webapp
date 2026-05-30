@@ -2,7 +2,7 @@
 id: TASK-16
 phase: "Phase 2 — Database Schema and Authentication (Day 2)"
 title: "Create performance indexes"
-status: pending
+status: completed
 ---
 
 # TASK-16 — Create performance indexes
