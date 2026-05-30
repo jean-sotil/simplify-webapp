@@ -2,7 +2,7 @@
 id: TASK-18
 phase: "Phase 2 — Database Schema and Authentication (Day 2)"
 title: "Deploy search_documents_semantic SQL function"
-status: pending
+status: completed
 ---
 
 # TASK-18 — Deploy search_documents_semantic SQL function
