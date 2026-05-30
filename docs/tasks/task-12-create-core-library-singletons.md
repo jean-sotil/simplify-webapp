@@ -2,7 +2,7 @@
 id: TASK-12
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Create core library singletons"
-status: pending
+status: done
 ---
 
 # TASK-12 — Create core library singletons
