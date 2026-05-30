@@ -2,7 +2,7 @@
 id: TASK-27
 phase: "Phase 3 — Projects Module (Days 3–4)"
 title: "Build ProjectForm component"
-status: pending
+status: completed
 ---
 
 # TASK-27 — Build ProjectForm component
