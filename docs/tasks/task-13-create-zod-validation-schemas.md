@@ -2,7 +2,7 @@
 id: TASK-13
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Create Zod validation schemas"
-status: pending
+status: done
 ---
 
 # TASK-13 — Create Zod validation schemas
