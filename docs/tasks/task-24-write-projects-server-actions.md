@@ -2,7 +2,7 @@
 id: TASK-24
 phase: "Phase 3 — Projects Module (Days 3–4)"
 title: "Write Projects Server Actions"
-status: pending
+status: completed
 ---
 
 # TASK-24 — Write Projects Server Actions
