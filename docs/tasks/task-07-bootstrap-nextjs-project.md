@@ -2,7 +2,7 @@
 id: TASK-07
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Bootstrap Next.js project"
-status: pending
+status: done
 ---
 
 # TASK-07 — Bootstrap Next.js project
