@@ -2,7 +2,7 @@
 id: TASK-25
 phase: "Phase 3 — Projects Module (Days 3–4)"
 title: "Build Projects list page"
-status: pending
+status: completed
 ---
 
 # TASK-25 — Build Projects list page
