@@ -2,7 +2,7 @@
 id: TASK-26
 phase: "Phase 3 — Projects Module (Days 3–4)"
 title: "Build ProjectCard component"
-status: pending
+status: completed
 ---
 
 # TASK-26 — Build ProjectCard component
