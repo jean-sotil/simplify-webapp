@@ -2,7 +2,7 @@
 id: TASK-11
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Create directory structure"
-status: pending
+status: done
 ---
 
 # TASK-11 — Create directory structure
