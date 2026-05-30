@@ -2,7 +2,7 @@
 id: TASK-09
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Enforce TypeScript strict mode"
-status: pending
+status: done
 ---
 
 # TASK-09 — Enforce TypeScript strict mode
