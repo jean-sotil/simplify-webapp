@@ -2,7 +2,7 @@
 id: TASK-21
 phase: "Phase 2 — Database Schema and Authentication (Day 2)"
 title: "Build sign-in page"
-status: pending
+status: completed
 ---
 
 # TASK-21 — Build sign-in page

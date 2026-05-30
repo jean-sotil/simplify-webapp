@@ -1,8 +1,34 @@
 @import 'tailwindcss';
 
 :root {
+  /* Brand & surface */
+  --color-primary: #080808;
+  --color-on-primary: #ffffff;
+  --color-canvas: #ffffff;
+  --color-hairline: #d8d8d8;
+
+  /* Text hierarchy */
+  --color-ink: #080808;
+  --color-ink-strong: #222222;
+  --color-body: #363636;
+  --color-body-mid: #5a5a5a;
+  --color-mute: #898989;
+  --color-mute-soft: #ababab;
+
+  /* Accent palette */
+  --color-accent-purple: #7a3dff;
+  --color-accent-pink: #ed52cb;
+  --color-accent-blue: #3b89ff;
+  --color-accent-blue-deep: #006acc;
+  --color-accent-blue-info: #146ef5;
+  --color-accent-orange: #ff6b00;
+  --color-accent-green: #00d722;
+  --color-accent-yellow: #ffae13;
+  --color-accent-red: #ee1d36;
+
+  /* Legacy compat */
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #080808;
 }
 
 @theme inline {
@@ -22,5 +48,5 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
 }
