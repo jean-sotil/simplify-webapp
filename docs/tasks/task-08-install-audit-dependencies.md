@@ -2,7 +2,7 @@
 id: TASK-08
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Install and audit dependencies"
-status: pending
+status: done
 ---
 
 # TASK-08 — Install and audit dependencies
