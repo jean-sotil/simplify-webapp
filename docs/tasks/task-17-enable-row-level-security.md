@@ -2,7 +2,7 @@
 id: TASK-17
 phase: "Phase 2 — Database Schema and Authentication (Day 2)"
 title: "Enable Row-Level Security policies"
-status: pending
+status: completed
 ---
 
 # TASK-17 — Enable Row-Level Security policies
