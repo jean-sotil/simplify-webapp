@@ -2,7 +2,7 @@
 id: TASK-22
 phase: "Phase 2 — Database Schema and Authentication (Day 2)"
 title: "Configure i18n middleware"
-status: pending
+status: completed
 ---
 
 # TASK-22 — Configure i18n middleware
