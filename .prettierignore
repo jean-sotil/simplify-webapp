@@ -1,0 +1,8 @@
+# Documentation and reference files — not source code
+docs/
+DESIGN.md
+.claude/
+.next/
+out/
+build/
+node_modules/

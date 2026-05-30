@@ -2,7 +2,7 @@
 id: TASK-10
 phase: "Phase 1 — Next.js Scaffold (Day 1)"
 title: "Configure ESLint and Prettier"
-status: pending
+status: done
 ---
 
 # TASK-10 — Configure ESLint and Prettier
