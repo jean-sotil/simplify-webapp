@@ -2,7 +2,7 @@
 id: TASK-20
 phase: "Phase 2 — Database Schema and Authentication (Day 2)"
 title: "Build auth callback route"
-status: pending
+status: completed
 ---
 
 # TASK-20 — Build auth callback route
