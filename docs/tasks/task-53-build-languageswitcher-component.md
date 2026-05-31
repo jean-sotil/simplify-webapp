@@ -2,7 +2,7 @@
 id: TASK-53
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Build LanguageSwitcher component"
-status: pending
+status: completed
 ---
 
 # TASK-53 — Build LanguageSwitcher component
