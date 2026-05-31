@@ -40,7 +40,7 @@ export async function uploadDocument(formData: FormData) {
   let blobUrl: string
   try {
     const blob = await put(file.name, file, {
-      access: 'public',
+      access: 'private',
       addRandomSuffix: true,
     })
     blobUrl = blob.url
