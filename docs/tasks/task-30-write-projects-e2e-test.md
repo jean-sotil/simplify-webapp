@@ -2,7 +2,7 @@
 id: TASK-30
 phase: "Phase 3 — Projects Module (Days 3–4)"
 title: "Write Projects Playwright E2E test"
-status: pending
+status: completed
 ---
 
 # TASK-30 — Write Projects Playwright E2E test
