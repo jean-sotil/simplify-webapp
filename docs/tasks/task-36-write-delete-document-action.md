@@ -2,7 +2,7 @@
 id: TASK-36
 phase: "Phase 4 — Documents Module (Days 5–6)"
 title: "Write delete document Server Action"
-status: pending
+status: completed
 ---
 
 # TASK-36 — Write delete document Server Action

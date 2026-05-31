@@ -1,0 +1,128 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { put } from '@vercel/blob'
+import { supabase } from '@/lib/db'
+import { supabaseAdmin } from '@/lib/db.server'
+import { getUser } from '@/lib/auth'
+import { DocumentUploadSchema } from '@/lib/validation/schemas'
+import { extractTextFromPdf } from '@/lib/utils/pdf'
+import { generateEmbedding } from '@/lib/ai/openai'
+
+async function requireAuth() {
+  const user = await getUser()
+  if (!user) throw new Error('Unauthorized')
+  return user
+}
+
+export async function uploadDocument(formData: FormData) {
+  const user = await requireAuth()
+
+  const file = formData.get('file') as File | null
+  const documentType = formData.get('documentType') as string | null
+  const teamId = formData.get('teamId') as string | null
+
+  if (!file || !documentType || !teamId) {
+    return { error: 'Missing required fields' }
+  }
+
+  const parsed = DocumentUploadSchema.safeParse({
+    file: { name: file.name, size: file.size, type: file.type },
+    documentType,
+    teamId,
+  })
+
+  if (!parsed.success) {
+    return { error: parsed.error.flatten().fieldErrors }
+  }
+
+  // Upload original file to Vercel Blob
+  let blobUrl: string
+  try {
+    const blob = await put(file.name, file, {
+      access: 'public',
+      addRandomSuffix: true,
+    })
+    blobUrl = blob.url
+  } catch (err) {
+    return {
+      error: `File upload failed: ${err instanceof Error ? err.message : 'unknown error'}`,
+    }
+  }
+
+  // Extract text from PDF
+  let extractedText = ''
+  try {
+    const buffer = await file.arrayBuffer()
+    extractedText = await extractTextFromPdf(buffer)
+  } catch (err) {
+    // Non-fatal: store document even if text extraction fails
+    console.warn('PDF text extraction failed:', err)
+  }
+
+  // Generate embedding only when we have text to embed
+  let embedding: number[] | null = null
+  if (extractedText) {
+    try {
+      embedding = await generateEmbedding(extractedText)
+    } catch (err) {
+      console.warn('Embedding generation failed:', err)
+    }
+  }
+
+  // Insert document record into the database
+  const { data: document, error: dbError } = await supabase
+    .from('documents')
+    .insert({
+      team_id: teamId,
+      filename: file.name,
+      document_type: documentType,
+      original_file_url: blobUrl,
+      extracted_text: extractedText,
+      embedding: embedding,
+      uploaded_by: user.id,
+      metadata: {},
+    })
+    .select()
+    .single()
+
+  if (dbError) return { error: dbError.message }
+
+  // Write immutable audit log entry via the service-role client
+  await supabaseAdmin.from('audit_logs').insert({
+    user_id: user.id,
+    team_id: teamId,
+    action: 'uploaded',
+    resource_type: 'document',
+    resource_id: document.id,
+  })
+
+  revalidatePath('/[lang]/documents', 'page')
+  return { data: document }
+}
+
+export async function deleteDocument(id: string) {
+  const user = await requireAuth()
+
+  const { data: doc, error: fetchError } = await supabase
+    .from('documents')
+    .select('team_id, original_file_url')
+    .eq('id', id)
+    .single()
+
+  if (fetchError) return { error: fetchError.message }
+
+  const { error } = await supabase.from('documents').delete().eq('id', id)
+  if (error) return { error: error.message }
+
+  await supabaseAdmin.from('audit_logs').insert({
+    user_id: user.id,
+    team_id: doc.team_id,
+    action: 'deleted',
+    resource_type: 'document',
+    resource_id: id,
+  })
+
+  revalidatePath('/[lang]/documents', 'page')
+  return { success: true }
+}

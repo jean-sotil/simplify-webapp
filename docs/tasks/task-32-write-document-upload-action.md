@@ -2,7 +2,7 @@
 id: TASK-32
 phase: "Phase 4 — Documents Module (Days 5–6)"
 title: "Write Document upload Server Action"
-status: pending
+status: completed
 ---
 
 # TASK-32 — Write Document upload Server Action
