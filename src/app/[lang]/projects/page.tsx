@@ -1,7 +1,16 @@
+import type { Metadata } from 'next'
 import { supabase } from '@/lib/db'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { ProjectCard } from '@/components/projects/ProjectCard'
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  const { lang } = await params
+  return {
+    title: 'Projects',
+    alternates: { languages: { en: '/en/projects', es: `/es/proyectos` } },
+  }
+}
 
 interface Props {
   params: Promise<{ lang: string }>

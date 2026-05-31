@@ -1,7 +1,21 @@
+import type { Metadata } from 'next'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 import { routing } from '@/lib/i18n/routing'
+
+export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+  return {
+    title: { template: '%s | Simplify', default: 'Simplify — Document Intelligence Platform' },
+    description: 'AI-powered document analysis for engineering teams.',
+    alternates: {
+      languages: {
+        en: '/en',
+        es: '/es',
+      },
+    },
+  }
+}
 
 interface Props {
   children: React.ReactNode

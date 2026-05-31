@@ -2,7 +2,7 @@
 id: TASK-54
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Implement per-route generateMetadata"
-status: pending
+status: completed
 ---
 
 # TASK-54 — Implement per-route generateMetadata
