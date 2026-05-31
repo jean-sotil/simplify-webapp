@@ -4,8 +4,7 @@ import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { DocumentUploader } from '@/components/documents/DocumentUploader'
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-  const { lang } = await params
+export async function generateMetadata(_props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   return {
     title: 'Documents',
     alternates: { languages: { en: '/en/documents', es: '/es/documents' } },

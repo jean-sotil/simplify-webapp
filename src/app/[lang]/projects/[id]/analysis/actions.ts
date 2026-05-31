@@ -1,6 +1,6 @@
 'use server'
 
-import { revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { supabase } from '@/lib/db'
 import { supabaseAdmin } from '@/lib/db.server'
 import { getUser } from '@/lib/auth'
@@ -83,6 +83,6 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
     resource_id: analysis.id,
   })
 
-  revalidateTag(`project-${projectId}`)
+  revalidatePath(`/[lang]/projects/${projectId}`, 'page')
   return { data: analysis }
 }

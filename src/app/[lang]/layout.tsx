@@ -11,7 +11,7 @@ interface Props {
   params: Promise<{ lang: string }>
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
+export async function generateMetadata(_props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   return {
     title: { template: '%s | Simplify', default: 'Simplify — Document Intelligence Platform' },
     description: 'AI-powered document analysis for engineering teams.',

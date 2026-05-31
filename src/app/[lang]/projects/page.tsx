@@ -4,11 +4,10 @@ import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { ProjectCard } from '@/components/projects/ProjectCard'
 
-export async function generateMetadata({ params }: { params: Promise<{ lang: string }> }): Promise<Metadata> {
-  const { lang } = await params
+export async function generateMetadata(_props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   return {
     title: 'Projects',
-    alternates: { languages: { en: '/en/projects', es: `/es/proyectos` } },
+    alternates: { languages: { en: '/en/projects', es: '/es/proyectos' } },
   }
 }
 

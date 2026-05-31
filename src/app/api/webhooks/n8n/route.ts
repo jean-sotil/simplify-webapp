@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
-import { revalidateTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 import { supabaseAdmin } from '@/lib/db.server'
 
 export async function POST(request: NextRequest) {
@@ -37,6 +37,6 @@ export async function POST(request: NextRequest) {
     }).eq('id', analysisId)
   }
 
-  revalidateTag(`project-${projectId}`)
+  revalidatePath(`/[lang]/projects/${projectId}`, 'page')
   return NextResponse.json({ success: true })
 }
