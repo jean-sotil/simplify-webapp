@@ -2,8 +2,8 @@
 
 import { revalidatePath } from 'next/cache'
 import { put } from '@vercel/blob'
-import { supabase } from '@/lib/db'
 import { supabaseAdmin } from '@/lib/db.server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { DocumentUploadSchema } from '@/lib/validation/schemas'
 import { extractTextFromPdf } from '@/lib/utils/pdf'
@@ -71,10 +71,11 @@ export async function uploadDocument(formData: FormData) {
   }
 
   // Insert document record into the database
+  const supabase = await createSupabaseServerClient()
   const { data: document, error: dbError } = await supabase
     .from('documents')
     .insert({
-      team_id: teamId,
+      team_id: null,
       filename: file.name,
       document_type: documentType,
       original_file_url: blobUrl,
@@ -102,6 +103,7 @@ export async function uploadDocument(formData: FormData) {
 
 export async function deleteDocument(id: string) {
   const user = await requireAuth()
+  const supabase = await createSupabaseServerClient()
 
   const { data: doc, error: fetchError } = await supabase
     .from('documents')
