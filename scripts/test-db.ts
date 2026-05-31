@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../src/lib/db'
+import { supabaseAdmin } from '../src/lib/db.server'
 
 async function main() {
   console.log('Testing Supabase connectivity...')

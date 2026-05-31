@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { supabase, supabaseAdmin } from '@/lib/db'
+import { supabase } from '@/lib/db'
+import { supabaseAdmin } from '@/lib/db.server'
 import { getUser } from '@/lib/auth'
 import {
   CreateProjectSchema,
