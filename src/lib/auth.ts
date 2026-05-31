@@ -1,7 +1,8 @@
 import { AuthSessionMissingError, type Session, type User } from "@supabase/supabase-js";
-import { supabase } from "@/lib/db";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function getSession(): Promise<Session | null> {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getSession();
   if (error) {
     if (error instanceof AuthSessionMissingError) return null;
@@ -11,6 +12,7 @@ export async function getSession(): Promise<Session | null> {
 }
 
 export async function getUser(): Promise<User | null> {
+  const supabase = await createSupabaseServerClient();
   const { data, error } = await supabase.auth.getUser();
   if (error) {
     if (error instanceof AuthSessionMissingError) return null;
