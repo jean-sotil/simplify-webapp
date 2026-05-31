@@ -40,7 +40,6 @@ export async function createProject(formData: FormData) {
   const raw = {
     name: formData.get('name'),
     description: formData.get('description') ?? '',
-    teamId: formData.get('teamId'),
     stage: formData.get('stage') ?? 'initiation',
     metadata: {},
   }
@@ -56,7 +55,7 @@ export async function createProject(formData: FormData) {
     .insert({
       name: data.name,
       description: data.description,
-      team_id: data.teamId,
+      team_id: null,
       stage: data.stage,
       owner_id: user.id,
       metadata: data.metadata,
@@ -66,7 +65,7 @@ export async function createProject(formData: FormData) {
 
   if (error) return { error: error.message }
 
-  await writeAuditLog(user.id, data.teamId, 'created', 'project', project.id)
+  await writeAuditLog(user.id, user.id, 'created', 'project', project.id)
   revalidatePath('/[lang]/projects', 'page')
   return { data: project }
 }
@@ -94,7 +93,7 @@ export async function updateProject(id: string, formData: FormData) {
 
   if (error) return { error: error.message }
 
-  await writeAuditLog(user.id, project.team_id, 'updated', 'project', id)
+  await writeAuditLog(user.id, user.id, 'updated', 'project', id)
   revalidatePath('/[lang]/projects', 'page')
   revalidatePath(`/[lang]/projects/${id}`, 'page')
   return { data: project }
@@ -115,7 +114,7 @@ export async function updateProjectStage(id: string, stage: string) {
 
   if (error) return { error: error.message }
 
-  await writeAuditLog(user.id, project.team_id, 'stage_changed', 'project', id, {
+  await writeAuditLog(user.id, user.id, 'stage_changed', 'project', id, {
     stage: parsed.data,
   })
   revalidatePath(`/[lang]/projects/${id}`, 'page')
@@ -125,9 +124,9 @@ export async function updateProjectStage(id: string, stage: string) {
 export async function deleteProject(id: string) {
   const user = await requireAuth()
 
-  const { data: project, error: fetchError } = await supabase
+  const { error: fetchError } = await supabase
     .from('projects')
-    .select('team_id')
+    .select('id')
     .eq('id', id)
     .single()
 
@@ -136,7 +135,7 @@ export async function deleteProject(id: string) {
   const { error } = await supabase.from('projects').delete().eq('id', id)
   if (error) return { error: error.message }
 
-  await writeAuditLog(user.id, project.team_id, 'deleted', 'project', id)
+  await writeAuditLog(user.id, user.id, 'deleted', 'project', id)
   revalidatePath('/[lang]/projects', 'page')
   return { success: true }
 }

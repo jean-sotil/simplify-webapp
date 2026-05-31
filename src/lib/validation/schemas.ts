@@ -44,9 +44,12 @@ export const CreateProjectSchema = z.object({
 
   stage: ProjectStageSchema.optional().default("initiation"),
 
+  // Optional in POC — team_id is nullable until multi-tenant setup is complete
   teamId: z
     .string()
-    .uuid({ message: "teamId must be a valid UUID." }),
+    .uuid({ message: "teamId must be a valid UUID." })
+    .optional()
+    .nullable(),
 
   metadata: z
     .record(z.string(), z.unknown())
@@ -125,7 +128,9 @@ export const DocumentUploadSchema = z.object({
 
   teamId: z
     .string()
-    .uuid({ message: "teamId must be a valid UUID." }),
+    .uuid({ message: "teamId must be a valid UUID." })
+    .optional()
+    .nullable(),
 
   metadata: z
     .object({

@@ -20,9 +20,9 @@ export async function uploadDocument(formData: FormData) {
 
   const file = formData.get('file') as File | null
   const documentType = formData.get('documentType') as string | null
-  const teamId = formData.get('teamId') as string | null
+  const teamId = (formData.get('teamId') as string | null) ?? null
 
-  if (!file || !documentType || !teamId) {
+  if (!file || !documentType) {
     return { error: 'Missing required fields' }
   }
 
@@ -88,10 +88,9 @@ export async function uploadDocument(formData: FormData) {
 
   if (dbError) return { error: dbError.message }
 
-  // Write immutable audit log entry via the service-role client
   await supabaseAdmin.from('audit_logs').insert({
     user_id: user.id,
-    team_id: teamId,
+    team_id: null,
     action: 'uploaded',
     resource_type: 'document',
     resource_id: document.id,
