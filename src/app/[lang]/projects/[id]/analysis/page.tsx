@@ -78,7 +78,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           >
             Select documents
           </h2>
-          <DocumentSelector teamId={project.team_id ?? user.id} />
+          <DocumentSelector />
         </section>
       </div>
     </main>

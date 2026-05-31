@@ -1,15 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { semanticSearchDocuments, type SemanticSearchResult } from '@/lib/search/semantic'
+import { searchDocumentsAction } from '@/app/[lang]/documents/search/actions'
+import type { SemanticSearchResult } from '@/lib/search/semantic'
 import type { SelectedDocument } from '@/lib/validation/schemas'
 
 interface DocumentSelectorProps {
-  teamId: string
   onRunAnalysis?: (selected: SelectedDocument[]) => void
 }
 
-export function DocumentSelector({ teamId, onRunAnalysis }: DocumentSelectorProps) {
+export function DocumentSelector({ onRunAnalysis }: DocumentSelectorProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<SemanticSearchResult[]>([])
   const [selected, setSelected] = useState<Map<string, SemanticSearchResult>>(new Map())
@@ -23,13 +23,13 @@ export function DocumentSelector({ teamId, onRunAnalysis }: DocumentSelectorProp
     setSearchStatus('searching')
     setErrorMessage('')
 
-    try {
-      const res = await semanticSearchDocuments(query, teamId)
-      setResults(res)
-      setSearchStatus('done')
-    } catch {
+    const result = await searchDocumentsAction(query)
+    if (result.error) {
       setSearchStatus('error')
-      setErrorMessage('Search failed. Please try again.')
+      setErrorMessage(result.error)
+    } else {
+      setResults(result.data ?? [])
+      setSearchStatus('done')
     }
   }
 

@@ -34,7 +34,7 @@ export default async function DocumentSearchPage({ params, searchParams }: Props
         )}
       </div>
 
-      <DocumentSelector teamId={user.id} />
+      <DocumentSelector />
     </main>
   )
 }
