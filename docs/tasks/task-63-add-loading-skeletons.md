@@ -2,7 +2,7 @@
 id: TASK-63
 phase: "Phase 9 — Navigation, Layout, and Dashboard (Days 11–12, part 3)"
 title: "Add loading skeletons"
-status: pending
+status: completed
 ---
 
 # TASK-63 — Add loading skeletons
