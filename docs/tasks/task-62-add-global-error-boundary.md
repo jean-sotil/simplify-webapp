@@ -2,7 +2,7 @@
 id: TASK-62
 phase: "Phase 9 — Navigation, Layout, and Dashboard (Days 11–12, part 3)"
 title: "Add global error boundary"
-status: pending
+status: completed
 ---
 
 # TASK-62 — Add global error boundary
