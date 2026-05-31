@@ -2,7 +2,7 @@
 id: TASK-45
 phase: "Phase 6 — Analysis Module and n8n Integration (Days 9–10)"
 title: "Write Python annotation script"
-status: pending
+status: completed
 ---
 
 # TASK-45 — Write Python annotation script
