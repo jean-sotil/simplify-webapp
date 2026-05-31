@@ -5,32 +5,28 @@ export class PdfExtractionError extends Error {
   }
 }
 
-// Max chars to embed — text-embedding-3-large supports ~8k tokens (~32k chars).
-// Truncating avoids API errors on large documents while keeping the most
-// important content (front-loaded in most technical specs).
+// Max chars sent to the embedding API.
+// text-embedding-3-large supports ~8k tokens (~32k chars).
 const MAX_EMBED_CHARS = 30_000
 
 export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
-  // pdf-parse is a pure Node.js library with no browser dependencies.
-  // Dynamic import keeps it out of the client bundle.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod = await import('pdf-parse') as any
-  const pdfParse = mod.default ?? mod
+  const { PDFParse } = await import('pdf-parse')
 
-  let result: { text: string; numpages: number }
+  const parser = new PDFParse({ data: Buffer.from(buffer) })
+
+  let result: { text: string; total: number }
   try {
-    result = await pdfParse(Buffer.from(buffer))
+    result = await parser.getText()
   } catch (err) {
     throw new PdfExtractionError('Failed to parse PDF', err)
   }
 
   if (!result.text?.trim()) {
     throw new PdfExtractionError(
-      `PDF has ${result.numpages} page(s) but contains no extractable text. ` +
+      `PDF has ${result.total} page(s) but no extractable text. ` +
       'The file may be a scanned image — OCR is not supported.'
     )
   }
 
-  // Truncate to embedding limit
   return result.text.slice(0, MAX_EMBED_CHARS)
 }
