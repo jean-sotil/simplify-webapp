@@ -2,7 +2,7 @@
 id: TASK-56
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Add JSON-LD schema"
-status: pending
+status: completed
 ---
 
 # TASK-56 — Add JSON-LD schema
