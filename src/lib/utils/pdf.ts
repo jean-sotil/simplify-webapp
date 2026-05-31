@@ -1,12 +1,7 @@
-import * as pdfjs from 'pdfjs-dist'
+// Type-only imports are erased at compile time and do not trigger module
+// evaluation, so pdfjs-dist browser globals are never accessed at build time.
+import type { PDFDocumentProxy } from 'pdfjs-dist/types/src/display/api'
 import type { TextItem, TextMarkedContent } from 'pdfjs-dist/types/src/display/api'
-
-// In a Node.js / server-action context, pdfjs-dist v5 does not need a real
-// worker. Pointing workerSrc at an empty string disables the worker thread
-// and falls back to the synchronous fake-worker bundled in the main build.
-if (typeof window === 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = ''
-}
 
 export class PdfExtractionError extends Error {
   constructor(message: string, public readonly cause?: unknown) {
@@ -24,9 +19,23 @@ function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
  * Each page is prefixed with "--- Page N ---".
  * Throws PdfExtractionError if the document cannot be loaded, is empty, or
  * contains no extractable text.
+ *
+ * pdfjs-dist is dynamically imported to prevent its browser-only module-level
+ * code (DOMMatrix, canvas globals) from executing during Next.js build-time
+ * static page data collection.
  */
 export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
-  let pdf: pdfjs.PDFDocumentProxy
+  // Dynamic import defers module evaluation to request time, never build time.
+  const pdfjs = await import('pdfjs-dist')
+
+  // In Node.js / server-action context, disable the worker thread by pointing
+  // workerSrc at an empty string. pdfjs-dist falls back to the synchronous
+  // fake-worker bundled inside the main build.
+  if (typeof window === 'undefined') {
+    pdfjs.GlobalWorkerOptions.workerSrc = ''
+  }
+
+  let pdf: PDFDocumentProxy
 
   try {
     const loadingTask = pdfjs.getDocument({
