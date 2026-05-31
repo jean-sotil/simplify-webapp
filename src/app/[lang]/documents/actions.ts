@@ -52,12 +52,14 @@ export async function uploadDocument(formData: FormData) {
 
   // Extract text from PDF
   let extractedText = ''
+  let indexingWarning: string | null = null
+
   try {
     const buffer = await file.arrayBuffer()
     extractedText = await extractTextFromPdf(buffer)
   } catch (err) {
-    // Non-fatal: store document even if text extraction fails
-    console.warn('PDF text extraction failed:', err)
+    indexingWarning = err instanceof Error ? err.message : 'PDF text extraction failed'
+    console.error('[uploadDocument] PDF extraction error:', err)
   }
 
   // Generate embedding only when we have text to embed
@@ -66,7 +68,8 @@ export async function uploadDocument(formData: FormData) {
     try {
       embedding = await generateEmbedding(extractedText)
     } catch (err) {
-      console.warn('Embedding generation failed:', err)
+      indexingWarning = `Embedding failed: ${err instanceof Error ? err.message : 'unknown error'}`
+      console.error('[uploadDocument] Embedding error:', err)
     }
   }
 
@@ -98,7 +101,7 @@ export async function uploadDocument(formData: FormData) {
   })
 
   revalidatePath('/[lang]/documents', 'page')
-  return { data: document }
+  return { data: document, warning: indexingWarning ?? undefined }
 }
 
 export async function deleteDocument(id: string) {

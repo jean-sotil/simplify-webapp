@@ -12,8 +12,9 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
   const [documentType, setDocumentType] = useState<'ett' | 'hardware'>('ett')
-  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
+  const [status, setStatus] = useState<'idle' | 'uploading' | 'success' | 'warning' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [warningMessage, setWarningMessage] = useState('')
   const [isDragOver, setIsDragOver] = useState(false)
 
   function handleFileSelect(selected: File | null) {
@@ -59,9 +60,14 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
       setStatus('error')
       setErrorMessage(typeof result.error === 'string' ? result.error : 'Upload failed.')
     } else {
-      setStatus('success')
       setFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
+      if ('warning' in result && result.warning) {
+        setStatus('warning')
+        setWarningMessage(`Uploaded but not indexed: ${result.warning}`)
+      } else {
+        setStatus('success')
+      }
     }
   }
 
@@ -145,13 +151,13 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
         </p>
       )}
       {status === 'success' && (
-        <p
-          role="status"
-          aria-live="polite"
-          className="mb-4 text-xs"
-          style={{ color: 'var(--color-accent-green)' }}
-        >
+        <p role="status" aria-live="polite" className="mb-4 text-xs" style={{ color: 'var(--color-accent-green)' }}>
           Document uploaded and indexed successfully.
+        </p>
+      )}
+      {status === 'warning' && (
+        <p role="status" aria-live="polite" className="mb-4 text-xs" style={{ color: 'var(--color-accent-yellow)' }}>
+          {warningMessage}
         </p>
       )}
 
