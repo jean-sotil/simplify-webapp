@@ -20,6 +20,7 @@ export const openai = new OpenAI({
 });
 
 const EMBEDDING_MODEL = "text-embedding-3-large";
+const EMBEDDING_DIMENSIONS = 1536; // must match VECTOR(1536) in Supabase
 
 /**
  * Generates a single embedding vector for the provided text.
@@ -29,6 +30,7 @@ export async function generateEmbedding(text: string): Promise<number[]> {
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: text,
+    dimensions: EMBEDDING_DIMENSIONS,
   });
   return response.data[0].embedding;
 }
@@ -43,6 +45,7 @@ export async function generateEmbeddingsBatch(
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: texts,
+    dimensions: EMBEDDING_DIMENSIONS,
   });
   return response.data.map((item) => item.embedding);
 }
