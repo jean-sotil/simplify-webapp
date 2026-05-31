@@ -10,23 +10,27 @@ export class PdfExtractionError extends Error {
 const MAX_EMBED_CHARS = 30_000
 
 export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
-  const { PDFParse } = await import('pdf-parse')
+  // unpdf is built for server/edge runtimes — no worker threads, no DOM deps.
+  const { extractText } = await import('unpdf')
 
-  const parser = new PDFParse({ data: Buffer.from(buffer) })
-
-  let result: { text: string; total: number }
+  let pages: string[]
   try {
-    result = await parser.getText()
+    const result = await extractText(new Uint8Array(buffer), { mergePages: false })
+    pages = result.text
   } catch (err) {
     throw new PdfExtractionError('Failed to parse PDF', err)
   }
 
-  if (!result.text?.trim()) {
+  if (!pages.length || !pages.join('').trim()) {
     throw new PdfExtractionError(
-      `PDF has ${result.total} page(s) but no extractable text. ` +
+      'PDF contains no extractable text. ' +
       'The file may be a scanned image — OCR is not supported.'
     )
   }
 
-  return result.text.slice(0, MAX_EMBED_CHARS)
+  const fullText = pages
+    .map((pageText, i) => `--- Page ${i + 1} ---\n${pageText}`)
+    .join('\n\n')
+
+  return fullText.slice(0, MAX_EMBED_CHARS)
 }
