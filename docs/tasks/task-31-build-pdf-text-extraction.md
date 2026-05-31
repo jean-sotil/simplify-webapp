@@ -2,7 +2,7 @@
 id: TASK-31
 phase: "Phase 4 — Documents Module (Days 5–6)"
 title: "Build PDF text extraction utility"
-status: pending
+status: completed
 ---
 
 # TASK-31 — Build PDF text extraction utility
