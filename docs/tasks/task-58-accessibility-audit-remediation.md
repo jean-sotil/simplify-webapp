@@ -2,7 +2,7 @@
 id: TASK-58
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Accessibility audit and remediation"
-status: pending
+status: completed
 ---
 
 # TASK-58 — Accessibility audit and remediation

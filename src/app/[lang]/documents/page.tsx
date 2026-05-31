@@ -35,7 +35,7 @@ export default async function DocumentsPage({ params }: Props) {
   if (error) throw new Error(error.message)
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">
       <div className="flex items-start justify-between mb-8">
         <div>
           <p

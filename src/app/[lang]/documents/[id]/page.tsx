@@ -43,7 +43,7 @@ export default async function DocumentDetailPage({ params }: Props) {
   ).flatMap((pd) => (pd.projects ? [pd.projects] : []))
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-4xl mx-auto px-4 py-8">
       <a
         href={`/${lang}/documents`}
         className="text-sm hover:underline mb-4 inline-block"

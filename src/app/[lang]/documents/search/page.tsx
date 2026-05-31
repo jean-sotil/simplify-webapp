@@ -16,7 +16,7 @@ export default async function DocumentSearchPage({ params, searchParams }: Props
   const docType = type === 'ett' || type === 'hardware' ? type : undefined
 
   return (
-    <main className="max-w-3xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-3xl mx-auto px-4 py-8">
       <div className="mb-8">
         <p
           className="text-xs font-medium uppercase tracking-[1.5px] mb-1"

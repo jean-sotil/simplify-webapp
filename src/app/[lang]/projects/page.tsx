@@ -31,7 +31,7 @@ export default async function ProjectsPage({ params }: Props) {
   if (error) throw new Error(error.message)
 
   return (
-    <main className="max-w-7xl mx-auto px-4 py-8">
+    <main id="main-content" className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex items-center justify-between mb-8">
         <div>
           <p
