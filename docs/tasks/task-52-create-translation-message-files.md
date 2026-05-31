@@ -2,7 +2,7 @@
 id: TASK-52
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Create translation message files"
-status: pending
+status: completed
 ---
 
 # TASK-52 — Create translation message files

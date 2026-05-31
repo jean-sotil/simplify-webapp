@@ -1,0 +1,55 @@
+{
+  "nav": {
+    "projects": "Proyectos",
+    "documents": "Documentos",
+    "signOut": "Cerrar sesión"
+  },
+  "projects": {
+    "title": "Proyectos",
+    "newProject": "Nuevo proyecto",
+    "noProjects": "Aún no hay proyectos.",
+    "createFirst": "Crea tu primer proyecto",
+    "updated": "Actualizado"
+  },
+  "documents": {
+    "title": "Biblioteca de Documentos",
+    "upload": "Subir nuevo documento",
+    "allDocuments": "Todos los documentos",
+    "noDocuments": "No hay documentos subidos aún.",
+    "semanticSearch": "Búsqueda semántica →",
+    "indexed": "Indexado",
+    "notIndexed": "No indexado",
+    "typeEtt": "ETT",
+    "typeHardware": "Hardware"
+  },
+  "analysis": {
+    "title": "Análisis de Documentos",
+    "findRelatedDocuments": "Buscar documentos",
+    "runAnalysis": "Ejecutar análisis",
+    "downloadZip": "Descargar PDFs anotados (ZIP)",
+    "noAnalysis": "Aún no se ha ejecutado ningún análisis.",
+    "inProgress": "Análisis en curso…",
+    "autoRefresh": "Esta página se actualiza automáticamente cada 5 segundos.",
+    "complete": "Análisis completo",
+    "failed": "Error en el análisis",
+    "documentsCount": "Documentos",
+    "pagesAnnotated": "Páginas anotadas"
+  },
+  "auth": {
+    "signIn": "Iniciar sesión",
+    "emailLabel": "Correo electrónico",
+    "sendMagicLink": "Enviar enlace mágico",
+    "sending": "Enviando…",
+    "checkEmail": "Revisa tu correo para el enlace mágico.",
+    "tagline": "Ingresa tu correo y te enviaremos un enlace mágico."
+  },
+  "common": {
+    "back": "Volver",
+    "save": "Guardar cambios",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "loading": "Cargando…",
+    "error": "Algo salió mal.",
+    "tryAgain": "Intentar de nuevo"
+  }
+}

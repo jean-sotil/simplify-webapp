@@ -1,0 +1,55 @@
+{
+  "nav": {
+    "projects": "Projects",
+    "documents": "Documents",
+    "signOut": "Sign out"
+  },
+  "projects": {
+    "title": "Projects",
+    "newProject": "New project",
+    "noProjects": "No projects yet.",
+    "createFirst": "Create your first project",
+    "updated": "Updated"
+  },
+  "documents": {
+    "title": "Document Library",
+    "upload": "Upload new document",
+    "allDocuments": "All documents",
+    "noDocuments": "No documents uploaded yet.",
+    "semanticSearch": "Semantic search →",
+    "indexed": "Indexed",
+    "notIndexed": "Not indexed",
+    "typeEtt": "ETT",
+    "typeHardware": "Hardware"
+  },
+  "analysis": {
+    "title": "Document Analysis",
+    "findRelatedDocuments": "Search documents",
+    "runAnalysis": "Run analysis",
+    "downloadZip": "Download annotated PDFs (ZIP)",
+    "noAnalysis": "No analysis has been run yet.",
+    "inProgress": "Analysis in progress…",
+    "autoRefresh": "This page refreshes automatically every 5 seconds.",
+    "complete": "Analysis complete",
+    "failed": "Analysis failed",
+    "documentsCount": "Documents",
+    "pagesAnnotated": "Pages annotated"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "emailLabel": "Email address",
+    "sendMagicLink": "Send magic link",
+    "sending": "Sending…",
+    "checkEmail": "Check your email for a magic link.",
+    "tagline": "Enter your email address and we'll send you a magic link."
+  },
+  "common": {
+    "back": "Back",
+    "save": "Save changes",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "loading": "Loading…",
+    "error": "Something went wrong.",
+    "tryAgain": "Try again"
+  }
+}
