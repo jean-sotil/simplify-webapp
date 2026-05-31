@@ -1,5 +1,5 @@
-import { supabase } from '@/lib/db'
 import { generateEmbedding } from '@/lib/ai/openai'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 export interface SemanticSearchResult {
   id: string
@@ -11,12 +11,12 @@ export interface SemanticSearchResult {
 
 /**
  * Performs a vector similarity search against the documents table.
- * Returns results ranked by cosine similarity, highest first.
- * Returns an empty array on any failure so callers can gracefully degrade.
+ * Caller must pass an authenticated Supabase client so auth.uid() resolves
+ * correctly in the SQL function's RLS check.
  */
 export async function semanticSearchDocuments(
   query: string,
-  teamId: string,
+  client: SupabaseClient,
   options?: {
     documentType?: 'ett' | 'hardware'
     limit?: number
@@ -31,14 +31,17 @@ export async function semanticSearchDocuments(
     return []
   }
 
-  const { data, error } = await supabase.rpc('search_documents_semantic', {
+  const { data, error } = await client.rpc('search_documents_semantic', {
     query_embedding: embedding,
-    team_id_param: teamId,
+    team_id_param: null,
     doc_type_filter: options?.documentType ?? null,
     match_count: limit,
   })
 
-  if (error || !data) return []
+  if (error || !data) {
+    console.error('[semanticSearchDocuments] RPC error:', error)
+    return []
+  }
 
   return (data as SemanticSearchResult[]).map((row) => ({
     ...row,

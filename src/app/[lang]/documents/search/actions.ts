@@ -2,6 +2,7 @@
 
 import { semanticSearchDocuments, type SemanticSearchResult } from '@/lib/search/semantic'
 import { getUser } from '@/lib/auth'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function searchDocumentsAction(
   query: string,
@@ -10,8 +11,10 @@ export async function searchDocumentsAction(
   const user = await getUser()
   if (!user) return { error: 'Unauthorized' }
 
+  const supabase = await createSupabaseServerClient()
+
   try {
-    const results = await semanticSearchDocuments(query, user.id, {
+    const results = await semanticSearchDocuments(query, supabase, {
       documentType,
       limit: 10,
     })
