@@ -2,11 +2,11 @@
 
 import { useFormStatus } from 'react-dom'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createProject, updateProject } from '@/app/[lang]/projects/actions'
 
 interface ProjectFormProps {
   lang: string
-  teamId: string
   mode: 'create' | 'edit'
   defaultValues?: {
     id?: string
@@ -33,9 +33,10 @@ function SubmitButton({ mode }: { mode: 'create' | 'edit' }) {
   )
 }
 
-export function ProjectForm({ lang: _lang, teamId, mode, defaultValues }: ProjectFormProps) {
+export function ProjectForm({ lang, mode, defaultValues }: ProjectFormProps) {
   const [nameError, setNameError] = useState('')
   const [formError, setFormError] = useState('')
+  const router = useRouter()
 
   async function handleAction(formData: FormData) {
     setNameError('')
@@ -46,8 +47,6 @@ export function ProjectForm({ lang: _lang, teamId, mode, defaultValues }: Projec
       setNameError('Project name is required.')
       return
     }
-
-    formData.set('teamId', teamId)
 
     const result =
       mode === 'create'
@@ -65,6 +64,13 @@ export function ProjectForm({ lang: _lang, teamId, mode, defaultValues }: Projec
       ) {
         setNameError((result.error as Record<string, string[]>).name[0])
       }
+      return
+    }
+
+    // Redirect after success
+    if ('data' in result && result.data) {
+      const id = (result.data as { id: string }).id
+      router.push(mode === 'create' ? `/${lang}/projects/${id}` : `/${lang}/projects/${id}`)
     }
   }
 
