@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { DocumentUploader } from '@/components/documents/DocumentUploader'
@@ -25,6 +25,8 @@ export default async function DocumentsPage({ params }: Props) {
   const { lang } = await params
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
+
+  const supabase = await createSupabaseServerClient()
 
   const { data: documents, error } = await supabase
     .from('documents')

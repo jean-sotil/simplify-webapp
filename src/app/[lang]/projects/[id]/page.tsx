@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { ProjectPipeline } from '@/components/projects/ProjectPipeline'
@@ -26,6 +26,8 @@ export default async function ProjectDetailPage({ params }: Props) {
   const { lang, id } = await params
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
+
+  const supabase = await createSupabaseServerClient()
 
   const { data: project, error } = await supabase
     .from('projects')

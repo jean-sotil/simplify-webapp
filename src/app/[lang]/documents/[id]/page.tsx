@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { deleteDocument } from '@/app/[lang]/documents/actions'
@@ -22,6 +22,8 @@ export default async function DocumentDetailPage({ params }: Props) {
   const { lang, id } = await params
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
+
+  const supabase = await createSupabaseServerClient()
 
   const { data: doc, error } = await supabase
     .from('documents')

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import type { ProjectStage } from '@/lib/validation/schemas'
@@ -32,6 +32,8 @@ export default async function DashboardPage({ params }: Props) {
   const { lang } = await params
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
+
+  const supabase = await createSupabaseServerClient()
 
   const [projectsRes, documentsRes, analysisRes] = await Promise.all([
     supabase.from('projects').select('stage').eq('owner_id', user.id),

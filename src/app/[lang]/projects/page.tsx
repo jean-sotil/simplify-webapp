@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { ProjectCard } from '@/components/projects/ProjectCard'
@@ -19,6 +19,8 @@ export default async function ProjectsPage({ params }: Props) {
   const { lang } = await params
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
+
+  const supabase = await createSupabaseServerClient()
 
   // For POC: fetch projects where owner_id = user.id (team_id TBD after teams provisioning)
   const { data: projects, error } = await supabase
