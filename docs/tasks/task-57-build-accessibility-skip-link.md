@@ -2,7 +2,7 @@
 id: TASK-57
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Build AccessibilitySkipLink component"
-status: pending
+status: completed
 ---
 
 # TASK-57 — Build AccessibilitySkipLink component
