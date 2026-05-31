@@ -2,7 +2,7 @@
 id: TASK-48
 phase: "Phase 7 — Document-Project Linking (Days 11–12, part 1)"
 title: "Write attachDocumentToProject Server Action"
-status: pending
+status: completed
 ---
 
 # TASK-48 — Write attachDocumentToProject Server Action

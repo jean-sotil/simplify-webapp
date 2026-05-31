@@ -2,7 +2,7 @@
 id: TASK-49
 phase: "Phase 7 — Document-Project Linking (Days 11–12, part 1)"
 title: "Write detachDocumentFromProject Server Action"
-status: pending
+status: completed
 ---
 
 # TASK-49 — Write detachDocumentFromProject Server Action
