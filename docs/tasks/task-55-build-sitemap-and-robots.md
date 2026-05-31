@@ -2,7 +2,7 @@
 id: TASK-55
 phase: "Phase 8 — i18n, SEO, and Accessibility (Days 11–12, part 2)"
 title: "Build sitemap and robots"
-status: pending
+status: completed
 ---
 
 # TASK-55 — Build sitemap and robots
