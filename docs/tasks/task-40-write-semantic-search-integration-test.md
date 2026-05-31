@@ -2,7 +2,7 @@
 id: TASK-40
 phase: "Phase 5 — Semantic Search (Days 7–8)"
 title: "Write semantic search integration test"
-status: pending
+status: completed
 ---
 
 # TASK-40 — Write semantic search integration test
