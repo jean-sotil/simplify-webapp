@@ -2,7 +2,7 @@
 id: TASK-33
 phase: "Phase 4 — Documents Module (Days 5–6)"
 title: "Build DocumentUploader component"
-status: pending
+status: completed
 ---
 
 # TASK-33 — Build DocumentUploader component
