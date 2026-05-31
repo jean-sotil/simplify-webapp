@@ -1,8 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/db'
 import { supabaseAdmin } from '@/lib/db.server'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import {
   CreateProjectSchema,
@@ -50,6 +50,7 @@ export async function createProject(formData: FormData) {
   }
 
   const { data } = parsed
+  const supabase = await createSupabaseServerClient()
   const { data: project, error } = await supabase
     .from('projects')
     .insert({
@@ -72,6 +73,7 @@ export async function createProject(formData: FormData) {
 
 export async function updateProject(id: string, formData: FormData) {
   const user = await requireAuth()
+  const supabase = await createSupabaseServerClient()
 
   const raw: Record<string, unknown> = {}
   const name = formData.get('name')
@@ -101,6 +103,7 @@ export async function updateProject(id: string, formData: FormData) {
 
 export async function updateProjectStage(id: string, stage: string) {
   const user = await requireAuth()
+  const supabase = await createSupabaseServerClient()
 
   const parsed = ProjectStageSchema.safeParse(stage)
   if (!parsed.success) return { error: 'Invalid stage value' }
@@ -123,6 +126,7 @@ export async function updateProjectStage(id: string, stage: string) {
 
 export async function deleteProject(id: string) {
   const user = await requireAuth()
+  const supabase = await createSupabaseServerClient()
 
   const { error: fetchError } = await supabase
     .from('projects')

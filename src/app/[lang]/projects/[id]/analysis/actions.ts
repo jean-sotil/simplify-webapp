@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/db.server'
 import { getUser } from '@/lib/auth'
 import { SelectedDocumentSchema } from '@/lib/validation/schemas'
@@ -24,6 +24,7 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
   }
 
   // Verify project ownership
+  const supabase = await createSupabaseServerClient()
   const { data: project, error: projectError } = await supabase
     .from('projects')
     .select('id, name, team_id')
@@ -45,7 +46,6 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   if (insertError) return { error: insertError.message }
 
-  // Link to project
   await supabase.from('projects').update({ metadata: { analysis_results_id: analysis.id } }).eq('id', projectId)
 
   // Trigger n8n

@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/db'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/db.server'
 import { getUser } from '@/lib/auth'
 
@@ -13,6 +13,7 @@ async function requireAuth() {
 
 export async function attachDocumentToProject(projectId: string, documentId: string) {
   const user = await requireAuth()
+  const supabase = await createSupabaseServerClient()
 
   const { data: project } = await supabase
     .from('projects')
@@ -20,7 +21,6 @@ export async function attachDocumentToProject(projectId: string, documentId: str
     .eq('id', projectId)
     .single()
 
-  // Use upsert with onConflict to silently ignore duplicates
   const { error } = await supabase
     .from('project_documents')
     .upsert(
@@ -45,6 +45,7 @@ export async function attachDocumentToProject(projectId: string, documentId: str
 
 export async function detachDocumentFromProject(projectId: string, documentId: string) {
   const user = await requireAuth()
+  const supabase = await createSupabaseServerClient()
 
   const { data: project } = await supabase
     .from('projects')
