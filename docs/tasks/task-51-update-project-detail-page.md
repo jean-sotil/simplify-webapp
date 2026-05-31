@@ -2,7 +2,7 @@
 id: TASK-51
 phase: "Phase 7 — Document-Project Linking (Days 11–12, part 1)"
 title: "Update Project detail page"
-status: pending
+status: completed
 ---
 
 # TASK-51 — Update Project detail page
