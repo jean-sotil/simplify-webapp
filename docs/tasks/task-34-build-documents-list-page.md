@@ -2,7 +2,7 @@
 id: TASK-34
 phase: "Phase 4 — Documents Module (Days 5–6)"
 title: "Build Documents list page"
-status: pending
+status: completed
 ---
 
 # TASK-34 — Build Documents list page
