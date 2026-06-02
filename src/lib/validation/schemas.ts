@@ -175,3 +175,59 @@ export const SelectedDocumentSchema = z.object({
 });
 
 export type SelectedDocument = z.infer<typeof SelectedDocumentSchema>;
+
+// ---------------------------------------------------------------------------
+// MatchedHardwareDocumentSchema
+// Represents a single hardware document that was semantically matched against
+// an ETT requirement.  Embedded inside TracedRequirementSchema.
+// ---------------------------------------------------------------------------
+
+export const MatchedHardwareDocumentSchema = z.object({
+  documentId: z
+    .string()
+    .uuid({ message: "documentId must be a valid UUID." }),
+
+  filename: z
+    .string()
+    .trim()
+    .min(1, { message: "filename is required." }),
+
+  originalFileUrl: z
+    .string()
+    .min(1, { message: "originalFileUrl is required." }),
+
+  similarityScore: z
+    .number()
+    .min(0)
+    .max(1),
+});
+
+export type MatchedHardwareDocument = z.infer<typeof MatchedHardwareDocumentSchema>;
+
+// ---------------------------------------------------------------------------
+// TracedRequirementSchema
+// A single ETT requirement with its ranked list of semantically matched
+// hardware documents.  Used to build the `requirements` array in the n8n
+// outbound payload so n8n can direct each annotation to the correct hardware
+// PDF without running its own relevance search.
+// ---------------------------------------------------------------------------
+
+export const TracedRequirementSchema = z.object({
+  requirementId: z
+    .string()
+    .trim()
+    .min(1, { message: "requirementId is required." }),
+
+  text: z
+    .string()
+    .trim()
+    .min(1, { message: "Requirement text is required." }),
+
+  sourceDocumentId: z
+    .string()
+    .uuid({ message: "sourceDocumentId must be a valid UUID." }),
+
+  matchedHardwareDocuments: z.array(MatchedHardwareDocumentSchema),
+});
+
+export type TracedRequirement = z.infer<typeof TracedRequirementSchema>;

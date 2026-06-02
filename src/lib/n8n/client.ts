@@ -1,3 +1,5 @@
+import type { TracedRequirement } from '@/lib/validation/schemas'
+
 export class N8nTriggerError extends Error {
   constructor(
     message: string,
@@ -20,6 +22,12 @@ export interface N8nWorkflowPayload {
     documentType: string
   }>
   webhookUrl: string
+  /**
+   * Pre-computed requirement-to-hardware-document trace map.
+   * Optional for backward compatibility — n8n must fall back to full document
+   * scanning when this field is absent or empty.
+   */
+  requirements?: TracedRequirement[]
 }
 
 export async function triggerN8nWorkflow(payload: N8nWorkflowPayload): Promise<void> {
