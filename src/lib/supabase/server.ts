@@ -19,10 +19,9 @@ export async function createSupabaseServerClient() {
               cookieStore.set(name, value, options)
             })
           } catch {
-            // setAll is called from a Server Component when Supabase refreshes
-            // the session token. The operation cannot modify cookies in this
-            // context, but the read-only session is still valid. This is safe
-            // to ignore — the middleware or next request will persist the token.
+            // setAll is called from Server Components where cookie writes are
+            // not allowed. The session will still be read correctly; writes
+            // only matter in Server Actions and Route Handlers.
           }
         },
       },

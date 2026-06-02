@@ -136,7 +136,10 @@ export default async function DocumentDetailPage({ params }: Props) {
       <form
         action={async () => {
           'use server'
-          await deleteDocument(id)
+          const result = await deleteDocument(id)
+          if (!('error' in result)) {
+            redirect(`/${lang}/documents`)
+          }
         }}
       >
         <button

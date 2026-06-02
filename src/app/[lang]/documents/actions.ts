@@ -36,12 +36,19 @@ export async function uploadDocument(formData: FormData) {
     return { error: parsed.error.flatten().fieldErrors }
   }
 
+  // Read the file into memory before passing to @vercel/blob.
+  // FormData File streams in Next.js Server Actions can be in a partially
+  // consumed state; converting to Buffer guarantees undici gets a clean body.
+  const fileBuffer = Buffer.from(await file.arrayBuffer())
+
   // Upload original file to Vercel Blob
   let blobUrl: string
   try {
-    const blob = await put(file.name, file, {
+    const blob = await put(file.name, fileBuffer, {
       access: 'private',
       addRandomSuffix: true,
+      contentType: file.type,
+      token: process.env.BLOB_READ_WRITE_TOKEN,
     })
     blobUrl = blob.url
   } catch (err) {
