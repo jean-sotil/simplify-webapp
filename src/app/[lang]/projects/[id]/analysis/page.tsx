@@ -1,12 +1,27 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
-import { AnalysisRunner } from '@/components/analysis/AnalysisRunner'
+import { AnalysisTrigger } from '@/components/analysis/AnalysisTrigger'
 import { AnalysisResults, type AnalysisResultData } from '@/components/analysis/AnalysisResults'
 import type { Metadata } from 'next'
 
 interface Props {
   params: Promise<{ lang: string; id: string }>
+}
+
+interface AttachedDocumentRow {
+  document_id: string
+  documents: {
+    id: string
+    filename: string
+    document_type: string
+    original_file_url: string
+  } | {
+    id: string
+    filename: string
+    document_type: string
+    original_file_url: string
+  }[] | null
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,11 +37,27 @@ export default async function ProjectAnalysisPage({ params }: Props) {
 
   const { data: project, error } = await supabase
     .from('projects')
-    .select('id, name, team_id')
+    .select(`
+      id, name, team_id,
+      project_documents (
+        document_id,
+        documents (id, filename, document_type, original_file_url)
+      )
+    `)
     .eq('id', id)
     .single()
 
   if (error || !project) notFound()
+
+  // Flatten the nested join result into a usable list of attached documents
+  const projectDocRows = (project.project_documents as AttachedDocumentRow[] | null) ?? []
+  const attachedDocuments = projectDocRows.flatMap((row) => {
+    if (!row.documents) return []
+    return Array.isArray(row.documents) ? row.documents : [row.documents]
+  })
+
+  // An ETT document is required before analysis can proceed
+  const ettDocument = attachedDocuments.find((d) => d.document_type === 'ett') ?? null
 
   const { data: analysis } = await supabase
     .from('analysis_results')
@@ -43,7 +74,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
         className="text-sm hover:underline mb-4 inline-block"
         style={{ color: 'var(--color-mute)' }}
       >
-        ← {project.name}
+        &larr; {project.name}
       </a>
 
       <div className="mb-8">
@@ -58,29 +89,60 @@ export default async function ProjectAnalysisPage({ params }: Props) {
         </h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <section aria-labelledby="results-label">
-          <h2
-            id="results-label"
-            className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
-            style={{ color: 'var(--color-mute)' }}
+      {ettDocument === null ? (
+        // Gate: block analysis when no ETT is attached
+        <div
+          className="border rounded-md p-8 text-center"
+          style={{ borderColor: 'var(--color-accent-yellow)' }}
+          role="alert"
+        >
+          <p className="text-sm font-medium mb-2" style={{ color: 'var(--color-ink)' }}>
+            An ETT document is required before analysis can start.
+          </p>
+          <p className="text-sm mb-4" style={{ color: 'var(--color-body)' }}>
+            Attach an ETT specification document to this project first, then return here to run
+            analysis.
+          </p>
+          <a
+            href={`/${lang}/projects/${id}`}
+            className="inline-block rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            Results
-          </h2>
-          <AnalysisResults result={analysis as AnalysisResultData | null} />
-        </section>
+            &larr; Back to project
+          </a>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <section aria-labelledby="results-label">
+            <h2
+              id="results-label"
+              className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
+              style={{ color: 'var(--color-mute)' }}
+            >
+              Results
+            </h2>
+            <AnalysisResults result={analysis as AnalysisResultData | null} />
+          </section>
 
-        <section aria-labelledby="selector-label">
-          <h2
-            id="selector-label"
-            className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
-            style={{ color: 'var(--color-mute)' }}
-          >
-            Select documents
-          </h2>
-          <AnalysisRunner projectId={id} />
-        </section>
-      </div>
+          <section aria-labelledby="selector-label">
+            <h2
+              id="selector-label"
+              className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
+              style={{ color: 'var(--color-mute)' }}
+            >
+              Select hardware documents
+            </h2>
+            <AnalysisTrigger
+              projectId={id}
+              ettDocument={{
+                id: ettDocument.id,
+                filename: ettDocument.filename,
+                url: ettDocument.original_file_url,
+              }}
+            />
+          </section>
+        </div>
+      )}
     </main>
   )
 }

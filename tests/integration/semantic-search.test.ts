@@ -65,7 +65,10 @@ describe.skipIf(!hasEnvVars)('semanticSearchDocuments', () => {
   })
 
   it('returns antenna document with higher similarity than procurement document for RF query', async () => {
-    const results = await semanticSearchDocuments('antenna RF specifications', TEST_TEAM_ID)
+    // semanticSearchDocuments now requires an authenticated SupabaseClient.
+    // Integration tests use supabaseAdmin which bypasses RLS — acceptable for
+    // seeded test data isolation.
+    const results = await semanticSearchDocuments('antenna RF specifications', supabaseAdmin)
 
     expect(results.length).toBeGreaterThan(0)
 
@@ -81,7 +84,7 @@ describe.skipIf(!hasEnvVars)('semanticSearchDocuments', () => {
   it('returns empty array for impossible query', async () => {
     const results = await semanticSearchDocuments(
       'xkcd quantum entanglement teleportation',
-      TEST_TEAM_ID,
+      supabaseAdmin,
       { limit: 2 },
     )
     // Should still return results (similarity ranking), just not throw

@@ -1,46 +1,57 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { searchDocumentsAction } from '@/app/[lang]/documents/search/actions'
+import type { SemanticSearchResult } from '@/lib/search/semantic'
 import type { SelectedDocument } from '@/lib/validation/schemas'
 
-interface HardwareDocument {
+export interface EttDocument {
   id: string
   filename: string
-  document_type: string
+  url: string
 }
 
 interface DocumentSelectorProps {
+  /**
+   * When provided, the selector operates in analysis mode: it displays the ETT
+   * context banner, pre-fills the query with the ETT filename, and scopes
+   * search results to hardware documents only.
+   *
+   * When absent, the selector operates in freeform search mode — no type
+   * scoping and no analysis trigger.
+   */
+  ettDocument?: EttDocument
   onRunAnalysis?: (selected: SelectedDocument[]) => void
-  documentTypeFilter?: 'ett' | 'hardware'
-  projectId?: string
 }
 
-export function DocumentSelector({ onRunAnalysis, documentTypeFilter = 'hardware', projectId = '' }: DocumentSelectorProps) {
-  const [documents, setDocuments] = useState<HardwareDocument[]>([])
-  const [selected, setSelected] = useState<Map<string, HardwareDocument>>(new Map())
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('')
+export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelectorProps) {
+  const [query, setQuery] = useState(ettDocument?.filename ?? '')
+  const [results, setResults] = useState<SemanticSearchResult[]>([])
+  const [selected, setSelected] = useState<Map<string, SemanticSearchResult>>(new Map())
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'done' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState('')
 
-  // Load documents on mount
-  useEffect(() => {
-    async function loadDocuments() {
-      setLoading(true)
-      try {
-        const res = await fetch(`/api/documents?type=${documentTypeFilter}&projectId=${projectId}`)
-        if (res.ok) {
-          const data = await res.json()
-          setDocuments(data.documents || [])
-        }
-      } catch {
-        // fallback: try the search action with empty query
-      } finally {
-        setLoading(false)
-      }
+  async function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    if (!query.trim()) return
+
+    setSearchStatus('searching')
+    setErrorMessage('')
+
+    // When operating in analysis mode (ettDocument present), scope search to
+    // hardware documents only — the ETT drives the query and hardware PDFs are
+    // the matching corpus. In freeform mode, search across all document types.
+    const result = await searchDocumentsAction(query, ettDocument ? 'hardware' : undefined)
+    if (result.error) {
+      setSearchStatus('error')
+      setErrorMessage(result.error)
+    } else {
+      setResults(result.data ?? [])
+      setSearchStatus('done')
     }
-    loadDocuments()
-  }, [documentTypeFilter, projectId])
+  }
 
-  function toggleSelection(doc: HardwareDocument) {
+  function toggleSelection(doc: SemanticSearchResult) {
     setSelected((prev) => {
       const next = new Map(prev)
       if (next.has(doc.id)) {
@@ -52,125 +63,157 @@ export function DocumentSelector({ onRunAnalysis, documentTypeFilter = 'hardware
     })
   }
 
-  function selectAll() {
-    const filtered = getFilteredDocs()
-    const next = new Map<string, HardwareDocument>()
-    filtered.forEach(doc => next.set(doc.id, doc))
-    setSelected(next)
-  }
-
-  function deselectAll() {
-    setSelected(new Map())
-  }
-
   function handleRunAnalysis() {
-    const selectedDocs: SelectedDocument[] = Array.from(selected.values()).map((doc) => ({
+    // SemanticSearchResult does not carry the blob URL — the server action
+    // resolves the real original_file_url from the documents table using the
+    // document id before forwarding to n8n. An empty string is the accepted
+    // placeholder per SelectedDocumentSchema.
+    const hardwareDocs: SelectedDocument[] = Array.from(selected.values()).map((doc) => ({
       id: doc.id,
       filename: doc.filename,
       url: '',
+      documentType: 'hardware' as const,
       relatedRequirements: [],
     }))
-    onRunAnalysis?.(selectedDocs)
+
+    if (ettDocument) {
+      // Analysis mode: the ETT document is always the first entry so n8n
+      // knows which document drives the analysis.
+      const ettEntry: SelectedDocument = {
+        id: ettDocument.id,
+        filename: ettDocument.filename,
+        url: ettDocument.url,
+        documentType: 'ett',
+        relatedRequirements: [],
+      }
+      onRunAnalysis?.([ettEntry, ...hardwareDocs])
+    } else {
+      onRunAnalysis?.(hardwareDocs)
+    }
   }
 
-  function getFilteredDocs() {
-    if (!filter.trim()) return documents
-    const q = filter.toLowerCase()
-    return documents.filter(d => d.filename.toLowerCase().includes(q))
-  }
-
-  const filteredDocs = getFilteredDocs()
+  const resultCount = results.length
   const selectedCount = selected.size
 
   return (
     <div>
-      {/* Filter input (optional string search) */}
-      <div className="mb-4">
+      {/* ETT context banner — only shown in analysis mode */}
+      {ettDocument && (
+        <div
+          className="mb-6 rounded-md px-4 py-3 text-sm"
+          style={{ backgroundColor: 'var(--color-accent-blue)', color: '#fff' }}
+          role="note"
+          aria-label="ETT document driving this analysis"
+        >
+          <span className="font-medium">ETT: </span>
+          {ettDocument.filename}
+        </div>
+      )}
+
+      {/* Search form */}
+      <form onSubmit={handleSearch} className="mb-6">
         <label
           htmlFor="filter-docs"
           className="block text-xs font-medium uppercase tracking-[1.5px] mb-2"
           style={{ color: 'var(--color-mute)' }}
         >
-          Filter documents
+          {ettDocument ? 'Search hardware documents' : 'Search query'}
         </label>
         <input
           id="filter-docs"
           type="text"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Type to filter by filename..."
-          className="w-full border rounded-sm px-4 py-2 text-sm focus:outline-none"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={ettDocument ? 'Search by requirement or keyword…' : 'Describe what you're looking for…'}
+          className="w-full border rounded-sm px-4 py-2 text-sm focus:outline-none mb-3"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         />
-      </div>
-
-      {/* Document list */}
-      {loading ? (
-        <p className="text-sm py-6 text-center" style={{ color: 'var(--color-mute)' }}>
-          Loading documents...
+        <p id="search-hint" className="text-xs mb-3" style={{ color: 'var(--color-mute)' }}>
+          {ettDocument
+            ? 'Results are hardware inventory PDFs ranked by similarity to your query. The ETT document above is always included in the analysis.'
+            : 'Describe what you’re looking for. Results are ranked by semantic similarity.'}
         </p>
-      ) : filteredDocs.length === 0 ? (
-        <p className="text-sm py-6 text-center" style={{ color: 'var(--color-mute)' }}>
-          No hardware documents found. Upload datasheets in the Documents section first.
-        </p>
-      ) : (
-        <section aria-labelledby="hw-docs-heading">
-          <div className="flex items-center justify-between mb-2">
-            <h2
-              id="hw-docs-heading"
-              className="text-xs font-medium uppercase tracking-[1.5px]"
-              style={{ color: 'var(--color-mute)' }}
-            >
-              Hardware documents ({filteredDocs.length})
-            </h2>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={selectAll}
-                className="text-xs px-2 py-1 rounded-sm border hover:bg-gray-50"
-                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-body)' }}
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                onClick={deselectAll}
-                className="text-xs px-2 py-1 rounded-sm border hover:bg-gray-50"
-                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-body)' }}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
+        <button
+          type="submit"
+          disabled={!query.trim() || searchStatus === 'searching'}
+          className="rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
+          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+          aria-busy={searchStatus === 'searching'}
+        >
+          {searchStatus === 'searching'
+            ? 'Searching…'
+            : ettDocument
+              ? 'Search hardware documents'
+              : 'Search documents'}
+        </button>
+      </form>
 
-          <ul
-            className="space-y-1 max-h-80 overflow-y-auto border rounded-md p-2 mb-4"
-            style={{ borderColor: 'var(--color-hairline)' }}
+      {/* Error feedback */}
+      {searchStatus === 'error' && (
+        <p
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 text-xs"
+          style={{ color: 'var(--color-accent-red)' }}
+        >
+          {errorMessage}
+        </p>
+      )}
+
+      {/* Results list */}
+      {searchStatus === 'done' && (
+        <section aria-labelledby="results-heading">
+          <h2
+            id="results-heading"
+            className="text-xs font-medium uppercase tracking-[1.5px] mb-3"
+            style={{ color: 'var(--color-mute)' }}
           >
-            {filteredDocs.map((doc) => {
-              const isSelected = selected.has(doc.id)
-              return (
-                <li key={doc.id}>
-                  <label className="flex items-center gap-3 px-3 py-2 rounded-sm cursor-pointer hover:bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => toggleSelection(doc)}
-                      aria-label={`Select ${doc.filename}`}
-                      className="shrink-0"
-                    />
-                    <span
-                      className="flex-1 text-sm min-w-0 break-all leading-tight"
-                      style={{ color: 'var(--color-ink)' }}
-                      title={doc.filename}
-                    >
-                      {doc.filename}
-                    </span>
-                  </label>
-                </li>
-              )
-            })}
-          </ul>
+            {ettDocument ? 'Hardware matches' : 'Results'}
+          </h2>
+          <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
+            {resultCount === 0
+              ? ettDocument ? 'No hardware documents found.' : 'No documents found.'
+              : ettDocument
+                ? `${resultCount} hardware document${resultCount === 1 ? '' : 's'} found.`
+                : `${resultCount} document${resultCount === 1 ? '' : 's'} found.`}
+          </p>
+
+          {resultCount === 0 ? (
+            <p className="text-sm py-6 text-center" style={{ color: 'var(--color-mute)' }}>
+              {ettDocument
+                ? 'No hardware documents matched your query.'
+                : 'No documents matched your query.'}
+            </p>
+          ) : (
+            <ul
+              className="space-y-2 max-h-80 overflow-y-auto border rounded-md p-2 mb-6"
+              style={{ borderColor: 'var(--color-hairline)' }}
+            >
+              {results.map((doc) => {
+                const isSelected = selected.has(doc.id)
+                return (
+                  <li key={doc.id}>
+                    <label className="flex items-center gap-3 px-3 py-2 rounded-sm cursor-pointer hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelection(doc)}
+                        aria-label={`Select ${doc.filename}`}
+                        className="shrink-0"
+                      />
+                      <span
+                        className="flex-1 text-sm min-w-0 break-all leading-tight"
+                        style={{ color: 'var(--color-ink)' }}
+                        title={doc.filename}
+                      >
+                        {doc.filename}
+                      </span>
+                    </label>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
         </section>
       )}
 
@@ -180,16 +223,29 @@ export function DocumentSelector({ onRunAnalysis, documentTypeFilter = 'hardware
           className="border rounded-md p-4"
           style={{ borderColor: 'var(--color-hairline)' }}
         >
-          <p className="text-xs mb-3" style={{ color: 'var(--color-mute)' }}>
-            {selectedCount} document{selectedCount === 1 ? '' : 's'} selected for analysis
-          </p>
+          <h2
+            id="selected-heading"
+            className="text-xs font-medium uppercase tracking-[1.5px] mb-2"
+            style={{ color: 'var(--color-mute)' }}
+          >
+            {ettDocument ? `Selected hardware (${selectedCount})` : `Selected (${selectedCount})`}
+          </h2>
+          <ul className="space-y-1 mb-4">
+            {Array.from(selected.values()).map((doc) => (
+              <li key={doc.id} className="text-sm" style={{ color: 'var(--color-ink)' }}>
+                {doc.filename}
+              </li>
+            ))}
+          </ul>
           <button
             type="button"
             onClick={handleRunAnalysis}
             className="rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
             style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            Run analysis with {selectedCount} document{selectedCount === 1 ? '' : 's'}
+            {ettDocument
+              ? `Run analysis with ${selectedCount} hardware document${selectedCount === 1 ? '' : 's'}`
+              : `Run analysis with ${selectedCount} document${selectedCount === 1 ? '' : 's'}`}
           </button>
         </div>
       )}

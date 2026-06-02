@@ -161,9 +161,12 @@ export const SelectedDocumentSchema = z.object({
     .trim()
     .min(1, { message: "Filename is required." }),
 
-  url: z
-    .string()
-    .default(""),
+  // URL is resolved server-side from the documents table using the document id.
+  // Clients may supply an empty string; the server action overwrites it before
+  // forwarding the payload to n8n.
+  url: z.string(),
+
+  documentType: DocumentTypeSchema,
 
   relatedRequirements: z
     .array(z.string().trim().min(1))

@@ -17,13 +17,19 @@ async function requireAuth() {
 export async function triggerAnalysis(projectId: string, selectedDocuments: unknown[]) {
   const user = await requireAuth()
 
-  // Validate selected documents
+  // Validate selected documents shape
   const parsed = z.array(SelectedDocumentSchema).min(1, 'Select at least one document.').safeParse(selectedDocuments)
   if (!parsed.success) {
     return { error: parsed.error.flatten() }
   }
 
-  // Verify project ownership
+  // Enforce business rule: at least one ETT document must be present
+  const hasEttDocument = parsed.data.some((d) => d.documentType === 'ett')
+  if (!hasEttDocument) {
+    return { error: 'Analysis requires at least one ETT document.' }
+  }
+
+  // Verify project ownership via RLS-enforced client
   const supabase = await createSupabaseServerClient()
   const { data: project, error: projectError } = await supabase
     .from('projects')
@@ -33,12 +39,32 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   if (projectError || !project) return { error: 'Project not found' }
 
+  // Resolve the actual blob URLs from the documents table.
+  // The client passes document ids; we authorise and enrich server-side so
+  // clients cannot inject arbitrary URLs into the n8n payload.
+  const documentIds = parsed.data.map((d) => d.id)
+  const { data: documentRows, error: docsError } = await supabase
+    .from('documents')
+    .select('id, original_file_url')
+    .in('id', documentIds)
+
+  if (docsError || !documentRows) {
+    return { error: 'Failed to resolve document URLs' }
+  }
+
+  const urlByDocumentId = new Map(documentRows.map((row) => [row.id, row.original_file_url as string]))
+
+  const enrichedDocuments = parsed.data.map((d) => ({
+    ...d,
+    url: urlByDocumentId.get(d.id) ?? '',
+  }))
+
   // Upsert analysis_results row (allows re-running analysis for same project)
   const { data: analysis, error: insertError } = await supabaseAdmin
     .from('analysis_results')
     .upsert({
       project_id: projectId,
-      selected_documents: parsed.data,
+      selected_documents: enrichedDocuments,
       status: 'processing',
       error_message: null,
       zip_file_url: null,
@@ -53,29 +79,20 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   await supabase.from('projects').update({ metadata: { analysis_results_id: analysis.id } }).eq('id', projectId)
 
-  // Trigger n8n
+  // Trigger n8n with correctly typed and URL-enriched documents
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-
-    // Resolve real URLs and document types from the database
-    const docIds = parsed.data.map(d => d.id)
-    const { data: dbDocs } = await supabaseAdmin
-      .from('documents')
-      .select('id, filename, original_file_url, document_type')
-      .in('id', docIds)
-
-    const docsWithUrls = (dbDocs || []).map(dbDoc => ({
-      id: dbDoc.id,
-      filename: dbDoc.filename,
-      originalFileUrl: dbDoc.original_file_url,
-      documentType: dbDoc.document_type as 'ett' | 'hardware',
-    }))
 
     await triggerN8nWorkflow({
       projectId,
       projectName: project.name,
       analysisId: analysis.id,
-      selectedDocuments: docsWithUrls,
+      selectedDocuments: enrichedDocuments.map((d) => ({
+        id: d.id,
+        filename: d.filename,
+        originalFileUrl: d.url,
+        documentType: d.documentType,
+      })),
       webhookUrl: `${appUrl}/api/webhooks/n8n`,
     })
   } catch (err) {

@@ -158,13 +158,32 @@ export default async function ProjectDetailPage({ params }: Props) {
         >
           Analysis
         </h2>
-        <a
-          href={`/${lang}/projects/${project.id}/analysis`}
-          className="inline-block rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
-        >
-          Open analysis →
-        </a>
+        {attachedDocuments.some((d) => d.document_type === 'ett') ? (
+          <a
+            href={`/${lang}/projects/${project.id}/analysis`}
+            className="inline-block rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
+            style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+          >
+            Open analysis →
+          </a>
+        ) : (
+          <div>
+            <p
+              className="text-sm mb-3"
+              style={{ color: 'var(--color-body)' }}
+            >
+              Attach an ETT document to this project to enable analysis.
+            </p>
+            <span
+              className="inline-block rounded-sm px-5 py-3 text-sm font-medium opacity-40 cursor-not-allowed select-none"
+              style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+              aria-disabled="true"
+              role="button"
+            >
+              Open analysis →
+            </span>
+          </div>
+        )}
       </section>
     </main>
   )

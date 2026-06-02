@@ -1,6 +1,6 @@
-{"type":"tech_stack","ts":"2026-05-30 23:30:39","project_name":"nextjs-scaffold","project_version":"0.1.0","description":"","frameworks":["next.js","react"],"framework_versions":{"next":"16.2.6","react":"19.2.4","typescript":"5","tailwindcss":"4"},"key_deps":["Data Fetching (React Query)","Styling (Tailwind)","Backend (Supabase)","Validation (Zod)"],"dev_tools":["TypeScript","TypeScript (strict)","ESLint","Prettier"],"package_manager":"npm","node_version":null,"module_type":"commonjs"}
-{"type":"architecture","ts":"2026-05-30 23:30:39","project_type":"single-package","patterns":["API Routes"],"key_directories":["src/","src/components/","src/lib/","src/types/","public/"],"entry_points":[]}
-{"type":"scripts","ts":"2026-05-30 23:30:39","available":{"dev":"next dev","build":"next build","start":"next start","lint":"eslint"}}
+{"type":"tech_stack","ts":"2026-06-02 04:01:03","project_name":"nextjs-scaffold","project_version":"0.1.0","description":"","frameworks":["next.js","react"],"framework_versions":{"next":"16.2.6","react":"19.2.4","typescript":"5","tailwindcss":"4"},"key_deps":["Data Fetching (React Query)","Styling (Tailwind)","Backend (Supabase)","Testing (Vitest)","Validation (Zod)"],"dev_tools":["TypeScript","TypeScript (strict)","ESLint","Prettier"],"package_manager":"npm","node_version":null,"module_type":"commonjs"}
+{"type":"architecture","ts":"2026-06-02 04:01:03","project_type":"single-package","patterns":["API Routes"],"key_directories":["src/","src/components/","src/lib/","src/types/","public/"],"entry_points":[]}
+{"type":"scripts","ts":"2026-06-02 04:01:03","available":{"dev":"next dev","build":"next build","start":"next start","test":"vitest run","lint":"eslint"}}
 {"type":"decision","content":"**Routing Analysis:** This is an architectural compatibility question — the user wants to know if an alternative AI provider (OpenCode) can substitute for whatever task-03 prescribes","session":"54ffd12b-efcf-4fcd-b01f-21cb5c650a4b"}
 {"type":"decision","content":"--typescript --tailwind --eslint --app --src-dir --import-alias '@/*' --no-git\n```\n\nKey decisions in the plan:\n- Scaffolds **into the repo root** (`.`) so existing `.git`, `docs/`, `DESIGN.md`, `.env.example` survive untouched\n- `--no-git` prevents `create-next-app` from clobbering the existing git repo\n- `--src-dir` produces `src/app/` which downstream tasks 08–11 depend on\n- Package manager: **npm** (matches existing `.gitignore`)\n\nDo you approve","session":"54ffd12b-efcf-4fcd-b01f-21cb5c650a4b"}
 {"type":"decision","content":"No shadcn/ui installed — will use Radix UI primitives directly","session":"4565b0d1-b0b0-4b5e-9a54-866e9c5aad79"}
@@ -8,3 +8,9 @@
 {"type":"error","content":"Exit code 1"}
 {"type":"error","content":"Exit code 1 | ... | sed: src/app/\\[lang\\]/documents/page.tsx: No such file or directory | sed: src/app/\\[lang\\]/projects/\\[id\\]/page.tsx: No such file or directory | sed: src/app/\\[lang\\]/projects/\\[id\\]/analysis/page.tsx: No such file or directory | sed: src/app/\\[lang\\]/documents/\\[id\\]/page.tsx: No such file or directory"}
 {"type":"error","content":"TypeError: Cannot read properties of undefined (reading 'verbosity')"}
+{"type":"error","content":"error: cannot pull with rebase: You have unstaged changes."}
+{"type":"error","content":"error: could not apply fb78377... fix: enforce ETT gate and correct analysis → n8n payload pipeline"}
+{"type":"error","content":"Exit code 1 | (eval):1: no matches found: /Users/jeanpaul/Documents/FreeLancer/simplify-webapp/src/app/[lang]/documents/search/actions.ts"}
+{"type":"error","content":"Exit code 1 | (eval):1: no matches found: src/app/[lang]/projects/[id]/analysis/actions.ts"}
+{"type":"error","content":"Exit code 1 | You must edit all merge conflicts and then | mark them as resolved using git add"}
+{"type":"error","content":"error: unknown option `no-edit'"}
