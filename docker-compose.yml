@@ -1,0 +1,147 @@
+# ============================================================
+# Simplify Webapp - Local Development Stack
+# Usage: docker compose up -d
+# ============================================================
+# This replaces the cloud Supabase instance for local testing.
+# All data stays on your machine — nothing touches production.
+# ============================================================
+
+services:
+  # ─── PostgreSQL with pgvector ───────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: simplify-postgres
+    restart: unless-stopped
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: simplify
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./supabase/seed.sql:/docker-entrypoint-initdb.d/01-seed.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Supabase Studio (DB browser) ──────────────────────────
+  # Optional: only if you want a visual DB browser locally
+  # Access at http://localhost:54323
+  studio:
+    image: supabase/studio:latest
+    container_name: simplify-studio
+    restart: unless-stopped
+    ports:
+      - "54323:3000"
+    environment:
+      STUDIO_PG_META_URL: http://pg-meta:8080
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_REST_URL: http://kong:8000/rest/v1/
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-your-anon-key-here}
+      SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:-your-service-key-here}
+    depends_on:
+      pg-meta:
+        condition: service_started
+    profiles:
+      - studio
+
+  # ─── Supabase pg-meta (required by Studio) ──────────────────
+  pg-meta:
+    image: supabase/postgres-meta:v0.84.2
+    container_name: simplify-pg-meta
+    restart: unless-stopped
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: postgres
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: simplify
+      PG_META_DB_USER: ${POSTGRES_USER}
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - studio
+
+  # ─── MinIO (S3-compatible storage — replaces Vercel Blob) ───
+  minio:
+    image: minio/minio:latest
+    container_name: simplify-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console UI
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── MinIO bucket initialization ───────────────────────────
+  minio-init:
+    image: minio/mc:latest
+    container_name: simplify-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $${MINIO_ROOT_USER} $${MINIO_ROOT_PASSWORD};
+      mc mb local/simplify-documents --ignore-existing;
+      mc mb local/simplify-annotated --ignore-existing;
+      mc anonymous set download local/simplify-documents;
+      mc anonymous set download local/simplify-annotated;
+      echo 'Buckets ready.';
+      "
+
+  # ─── n8n (workflow automation) ──────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: simplify-n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=America/Lima
+      # Vercel Blob token (local MinIO equivalent)
+      - VERCEL_BLOB_TOKEN=${VERCEL_BLOB_TOKEN}
+      # OpenRouter (same key as the webapp)
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_BASE_URL=https://openrouter.ai/api/v1
+    volumes:
+      - n8n_data:/home/node/.n8n
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── Mailpit (email testing) ────────────────────────────────
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: simplify-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"   # Web UI
+      - "1025:1025"   # SMTP
+    profiles:
+      - mail
+
+volumes:
+  postgres_data:
+  minio_data:
+  n8n_data:
