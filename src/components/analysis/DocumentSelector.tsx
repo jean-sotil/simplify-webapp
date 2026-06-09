@@ -12,10 +12,10 @@ interface HardwareDocument {
 interface DocumentSelectorProps {
   onRunAnalysis?: (selected: SelectedDocument[]) => void
   documentTypeFilter?: 'ett' | 'hardware'
-  projectId: string
+  projectId?: string
 }
 
-export function DocumentSelector({ onRunAnalysis, documentTypeFilter = 'hardware', projectId }: DocumentSelectorProps) {
+export function DocumentSelector({ onRunAnalysis, documentTypeFilter = 'hardware', projectId = '' }: DocumentSelectorProps) {
   const [documents, setDocuments] = useState<HardwareDocument[]>([])
   const [selected, setSelected] = useState<Map<string, HardwareDocument>>(new Map())
   const [loading, setLoading] = useState(true)
