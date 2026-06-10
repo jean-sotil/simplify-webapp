@@ -56,7 +56,7 @@ export default async function ProjectDetailPage({ params }: Props) {
     .select('id, filename, document_type')
     .order('uploaded_at', { ascending: false })
 
-  const availableForAttach = (allDocs ?? []).filter(d => !attachedIds.has(d.id))
+  const availableForAttach = (allDocs ?? []).filter(d => !attachedIds.has(d.id) && d.document_type === 'ett')
 
   return (
     <main id="main-content" className="max-w-5xl mx-auto px-4 py-8">

@@ -163,7 +163,7 @@ export const SelectedDocumentSchema = z.object({
 
   url: z
     .string()
-    .url({ message: "Document URL must be a valid URL." }),
+    .default(""),
 
   relatedRequirements: z
     .array(z.string().trim().min(1))

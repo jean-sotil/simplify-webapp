@@ -1,16 +1,27 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
-import { supabaseAdmin } from '../../src/lib/db.server'
-import { semanticSearchDocuments } from '../../src/lib/search/semantic'
-import { generateEmbedding } from '../../src/lib/ai/openai'
 
-// This test requires real Supabase and OpenRouter credentials in .env.local
-// Run with: npx vitest run tests/integration/semantic-search.test.ts
+const hasEnvVars = !!(
+  process.env.NEXT_PUBLIC_SUPABASE_URL &&
+  process.env.SUPABASE_SERVICE_ROLE_KEY &&
+  process.env.OPENAI_API_KEY
+)
 
-describe('semanticSearchDocuments', () => {
+describe.skipIf(!hasEnvVars)('semanticSearchDocuments', () => {
   const TEST_TEAM_ID = '00000000-0000-0000-0000-000000000001'
   const createdIds: string[] = []
 
+  // Dynamic imports to avoid crashing when env vars are missing
+  let supabaseAdmin: Awaited<typeof import('../../src/lib/db.server')>['supabaseAdmin']
+  let semanticSearchDocuments: Awaited<typeof import('../../src/lib/search/semantic')>['semanticSearchDocuments']
+  let generateEmbedding: Awaited<typeof import('../../src/lib/ai/openai')>['generateEmbedding']
+
   beforeAll(async () => {
+    const dbMod = await import('../../src/lib/db.server')
+    const searchMod = await import('../../src/lib/search/semantic')
+    const aiMod = await import('../../src/lib/ai/openai')
+    supabaseAdmin = dbMod.supabaseAdmin
+    semanticSearchDocuments = searchMod.semanticSearchDocuments
+    generateEmbedding = aiMod.generateEmbedding
     // Seed test team
     await supabaseAdmin.from('teams').upsert({ id: TEST_TEAM_ID, name: 'Integration Test Team' })
 

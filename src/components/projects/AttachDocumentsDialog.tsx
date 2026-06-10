@@ -67,7 +67,7 @@ export function AttachDocumentsDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl focus:outline-none"
+          className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl focus:outline-none"
           style={{ border: '1px solid var(--color-hairline)' }}
           aria-describedby="attach-dialog-desc"
         >
@@ -106,11 +106,15 @@ export function AttachDocumentsDialog({
                         aria-label={`Attach ${doc.filename}`}
                         className="shrink-0"
                       />
-                      <span className="flex-1 truncate" style={{ color: 'var(--color-ink)' }}>
+                      <span
+                        className="flex-1 min-w-0 text-sm break-all leading-tight"
+                        style={{ color: 'var(--color-ink)' }}
+                        title={doc.filename}
+                      >
                         {doc.filename}
                       </span>
                       <span
-                        className="text-xs uppercase shrink-0"
+                        className="text-xs uppercase shrink-0 ml-2"
                         style={{ color: 'var(--color-mute)' }}
                       >
                         {doc.document_type}

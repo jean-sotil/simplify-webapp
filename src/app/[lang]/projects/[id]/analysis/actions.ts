@@ -33,14 +33,19 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   if (projectError || !project) return { error: 'Project not found' }
 
-  // Insert analysis_results row
+  // Upsert analysis_results row (allows re-running analysis for same project)
   const { data: analysis, error: insertError } = await supabaseAdmin
     .from('analysis_results')
-    .insert({
+    .upsert({
       project_id: projectId,
       selected_documents: parsed.data,
       status: 'processing',
-    })
+      error_message: null,
+      zip_file_url: null,
+      analysis_metadata: null,
+      completed_at: null,
+      triggered_at: new Date().toISOString(),
+    }, { onConflict: 'project_id' })
     .select()
     .single()
 
@@ -51,16 +56,26 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
   // Trigger n8n
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+
+    // Resolve real URLs and document types from the database
+    const docIds = parsed.data.map(d => d.id)
+    const { data: dbDocs } = await supabaseAdmin
+      .from('documents')
+      .select('id, filename, original_file_url, document_type')
+      .in('id', docIds)
+
+    const docsWithUrls = (dbDocs || []).map(dbDoc => ({
+      id: dbDoc.id,
+      filename: dbDoc.filename,
+      originalFileUrl: dbDoc.original_file_url,
+      documentType: dbDoc.document_type as 'ett' | 'hardware',
+    }))
+
     await triggerN8nWorkflow({
       projectId,
       projectName: project.name,
       analysisId: analysis.id,
-      selectedDocuments: parsed.data.map(d => ({
-        id: d.id,
-        filename: d.filename,
-        originalFileUrl: d.url,
-        documentType: 'ett',
-      })),
+      selectedDocuments: docsWithUrls,
       webhookUrl: `${appUrl}/api/webhooks/n8n`,
     })
   } catch (err) {

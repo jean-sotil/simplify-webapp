@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
-import { DocumentSelector } from '@/components/analysis/DocumentSelector'
+import { AnalysisRunner } from '@/components/analysis/AnalysisRunner'
 import { AnalysisResults, type AnalysisResultData } from '@/components/analysis/AnalysisResults'
 import type { Metadata } from 'next'
 
@@ -78,7 +78,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           >
             Select documents
           </h2>
-          <DocumentSelector />
+          <AnalysisRunner projectId={id} />
         </section>
       </div>
     </main>
