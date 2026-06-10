@@ -56,7 +56,7 @@ export function AnalysisRunner({ projectId }: AnalysisRunnerProps) {
         </div>
       )}
 
-      <DocumentSelector onRunAnalysis={handleRunAnalysis} documentTypeFilter="hardware" projectId={projectId} />
+      <DocumentSelector onRunAnalysis={handleRunAnalysis} />
     </div>
   )
 }
