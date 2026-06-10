@@ -124,14 +124,14 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={ettDocument ? 'Search by requirement or keyword…' : 'Describe what you're looking for…'}
+          placeholder={ettDocument ? 'Search by requirement or keyword…' : "Describe what you're looking for…"}
           className="w-full border rounded-sm px-4 py-2 text-sm focus:outline-none mb-3"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         />
         <p id="search-hint" className="text-xs mb-3" style={{ color: 'var(--color-mute)' }}>
           {ettDocument
             ? 'Results are hardware inventory PDFs ranked by similarity to your query. The ETT document above is always included in the analysis.'
-            : 'Describe what you’re looking for. Results are ranked by semantic similarity.'}
+            : "Describe what you’re looking for. Results are ranked by semantic similarity."}
         </p>
         <button
           type="submit"
