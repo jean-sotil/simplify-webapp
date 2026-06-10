@@ -7,7 +7,12 @@ import { routing } from '@/lib/i18n/routing'
 
 export function LanguageSwitcher() {
   const currentLocale = useLocale()
-  const pathname = usePathname()
+  const fullPathname = usePathname()
+  // usePathname from next/navigation includes the locale prefix (/en/projects);
+  // strip it so we can reattach the target locale cleanly.
+  const pathname = fullPathname.startsWith(`/${currentLocale}`)
+    ? fullPathname.slice(currentLocale.length + 1) || '/'
+    : fullPathname
 
   return (
     <nav aria-label="Language switcher">
