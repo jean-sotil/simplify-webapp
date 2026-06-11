@@ -15,9 +15,9 @@ interface DocumentSelectorProps {
   /**
    * When provided, the selector operates in analysis mode: it displays the ETT
    * context banner, pre-fills the query with the ETT filename, and scopes
-   * search results to hardware documents only.
+   * search results to the selected document type (hardware or software).
    *
-   * When absent, the selector operates in freeform search mode â€” no type
+   * When absent, the selector operates in freeform search mode -- no type
    * scoping and no analysis trigger.
    */
   ettDocument?: EttDocument
@@ -27,7 +27,8 @@ interface DocumentSelectorProps {
 export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelectorProps) {
   const [query, setQuery] = useState(ettDocument?.filename ?? '')
   const [results, setResults] = useState<SemanticSearchResult[]>([])
-  const [selected, setSelected] = useState<Map<string, SemanticSearchResult>>(new Map())
+  // Selected documents accumulate across searches (hardware + software)
+  const [selected, setSelected] = useState<Map<string, SemanticSearchResult & { docType: string }>>(new Map())
   const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'done' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [docTypeFilter, setDocTypeFilter] = useState<'hardware' | 'software'>('hardware')
@@ -39,7 +40,6 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
     setSearchStatus('searching')
     setErrorMessage('')
 
-    // Scope search to the selected document type filter
     const result = await searchDocumentsAction(query, ettDocument ? docTypeFilter : undefined)
     if (result.error) {
       setSearchStatus('error')
@@ -56,28 +56,22 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
       if (next.has(doc.id)) {
         next.delete(doc.id)
       } else {
-        next.set(doc.id, doc)
+        next.set(doc.id, { ...doc, docType: docTypeFilter })
       }
       return next
     })
   }
 
   function handleRunAnalysis() {
-    // SemanticSearchResult does not carry the blob URL â€” the server action
-    // resolves the real original_file_url from the documents table using the
-    // document id before forwarding to n8n. An empty string is the accepted
-    // placeholder per SelectedDocumentSchema.
-    const hardwareDocs: SelectedDocument[] = Array.from(selected.values()).map((doc) => ({
+    const selectedDocs: SelectedDocument[] = Array.from(selected.values()).map((doc) => ({
       id: doc.id,
       filename: doc.filename,
       url: '',
-      documentType: docTypeFilter,
+      documentType: doc.docType as 'hardware' | 'software',
       relatedRequirements: [],
     }))
 
     if (ettDocument) {
-      // Analysis mode: the ETT document is always the first entry so n8n
-      // knows which document drives the analysis.
       const ettEntry: SelectedDocument = {
         id: ettDocument.id,
         filename: ettDocument.filename,
@@ -85,9 +79,9 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
         documentType: 'ett',
         relatedRequirements: [],
       }
-      onRunAnalysis?.([ettEntry, ...hardwareDocs])
+      onRunAnalysis?.([ettEntry, ...selectedDocs])
     } else {
-      onRunAnalysis?.(hardwareDocs)
+      onRunAnalysis?.(selectedDocs)
     }
   }
 
@@ -96,7 +90,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
 
   return (
     <div>
-      {/* ETT context banner â€” only shown in analysis mode */}
+      {/* ETT context banner */}
       {ettDocument && (
         <div
           className="mb-6 rounded-md px-4 py-3 text-sm"
@@ -111,7 +105,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
 
       {/* Search form */}
       <form onSubmit={handleSearch} className="mb-6">
-        {/* Document type filter â€” only in analysis mode */}
+        {/* Document type filter */}
         {ettDocument && (
           <div className="mb-4">
             <label
@@ -160,13 +154,13 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={ettDocument ? 'Search by requirement or keywordâ€¦' : "Describe what you're looking forâ€¦"}
+          placeholder={ettDocument ? 'Search by requirement or keyword...' : "Describe what you're looking for..."}
           className="w-full border rounded-sm px-4 py-2 text-sm focus:outline-none mb-3"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         />
         <p id="search-hint" className="text-xs mb-3" style={{ color: 'var(--color-mute)' }}>
           {ettDocument
-            ? `Results are ${docTypeFilter} inventory PDFs ranked by similarity to your query. The ETT document above is always included in the analysis.`
+            ? `Results are ${docTypeFilter} inventory PDFs ranked by similarity. Selected documents accumulate across searches.`
             : "Describe what you're looking for. Results are ranked by semantic similarity."}
         </p>
         <button
@@ -176,11 +170,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           aria-busy={searchStatus === 'searching'}
         >
-          {searchStatus === 'searching'
-            ? 'Searchingâ€¦'
-            : ettDocument
-              ? 'Search hardware documents'
-              : 'Search documents'}
+          {searchStatus === 'searching' ? 'Searching...' : 'Search documents'}
         </button>
       </form>
 
@@ -204,32 +194,24 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
             className="text-xs font-medium uppercase tracking-[1.5px] mb-3"
             style={{ color: 'var(--color-mute)' }}
           >
-            {ettDocument ? 'Hardware matches' : 'Results'}
+            {docTypeFilter} matches
           </h2>
-          <p role="status" aria-live="polite" aria-atomic="true" className="sr-only">
-            {resultCount === 0
-              ? ettDocument ? 'No hardware documents found.' : 'No documents found.'
-              : ettDocument
-                ? `${resultCount} hardware document${resultCount === 1 ? '' : 's'} found.`
-                : `${resultCount} document${resultCount === 1 ? '' : 's'} found.`}
-          </p>
 
           {resultCount === 0 ? (
             <p className="text-sm py-6 text-center" style={{ color: 'var(--color-mute)' }}>
-              {ettDocument
-                ? 'No hardware documents matched your query.'
-                : 'No documents matched your query.'}
+              No {docTypeFilter} documents matched your query.
             </p>
           ) : (
             <>
-              {/* Select All / Deselect All buttons */}
               <div className="flex gap-2 mb-2">
                 <button
                   type="button"
                   onClick={() => {
-                    const allMap = new Map<string, SemanticSearchResult>()
-                    results.forEach((doc) => allMap.set(doc.id, doc))
-                    setSelected(allMap)
+                    setSelected((prev) => {
+                      const next = new Map(prev)
+                      results.forEach((doc) => next.set(doc.id, { ...doc, docType: docTypeFilter }))
+                      return next
+                    })
                   }}
                   className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
                   style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
@@ -238,7 +220,13 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
                 </button>
                 <button
                   type="button"
-                  onClick={() => setSelected(new Map())}
+                  onClick={() => {
+                    setSelected((prev) => {
+                      const next = new Map(prev)
+                      results.forEach((doc) => next.delete(doc.id))
+                      return next
+                    })
+                  }}
                   className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
                   style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
                 >
@@ -278,7 +266,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
         </section>
       )}
 
-      {/* Run analysis button */}
+      {/* Selected documents summary + run button */}
       {selectedCount > 0 && (
         <div
           className="border rounded-md p-4"
@@ -289,11 +277,20 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
             className="text-xs font-medium uppercase tracking-[1.5px] mb-2"
             style={{ color: 'var(--color-mute)' }}
           >
-            {ettDocument ? `Selected hardware (${selectedCount})` : `Selected (${selectedCount})`}
+            Selected documents ({selectedCount})
           </h2>
           <ul className="space-y-1 mb-4">
             {Array.from(selected.values()).map((doc) => (
-              <li key={doc.id} className="text-sm" style={{ color: 'var(--color-ink)' }}>
+              <li key={doc.id} className="flex items-center gap-2 text-sm" style={{ color: 'var(--color-ink)' }}>
+                <span
+                  className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm ${
+                    doc.docType === 'hardware'
+                      ? 'bg-[var(--color-accent-orange)] text-white'
+                      : 'bg-emerald-600 text-white'
+                  }`}
+                >
+                  {doc.docType === 'hardware' ? 'HW' : 'SW'}
+                </span>
                 {doc.filename}
               </li>
             ))}
@@ -304,9 +301,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
             className="rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
             style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            {ettDocument
-              ? `Run analysis with ${selectedCount} hardware document${selectedCount === 1 ? '' : 's'}`
-              : `Run analysis with ${selectedCount} document${selectedCount === 1 ? '' : 's'}`}
+            Run analysis with {selectedCount} document{selectedCount === 1 ? '' : 's'}
           </button>
         </div>
       )}
