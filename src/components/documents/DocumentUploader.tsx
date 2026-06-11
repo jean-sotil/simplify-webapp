@@ -1,8 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { put as blobPut } from '@vercel/blob/client'
-import { uploadDocument, indexUploadedDocument } from '@/app/[lang]/documents/actions'
+import { uploadDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
   teamId: string
@@ -16,9 +15,7 @@ interface FileEntry {
   message?: string
 }
 
-// Vercel serverless functions have a hard 4.5 MB request body limit
-const SERVER_ACTION_SIZE_LIMIT = 4 * 1024 * 1024 // 4 MB (safe margin)
-
+// Vercel Fluid Compute enables larger body sizes for Server Actions
 export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
@@ -94,50 +91,20 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
   }
 
   async function uploadSingleFile(entry: FileEntry): Promise<{ error?: string; warning?: string }> {
-    if (entry.file.size <= SERVER_ACTION_SIZE_LIMIT) {
-      // Small file: use Server Action directly (faster, simpler)
-      const formData = new FormData()
-      formData.set('file', entry.file)
-      formData.set('documentType', entry.documentType)
-      formData.set('teamId', teamId)
+    // Server Action with Fluid Compute — supports large files
+    const formData = new FormData()
+    formData.set('file', entry.file)
+    formData.set('documentType', entry.documentType)
+    formData.set('teamId', teamId)
 
-      const result = await uploadDocument(formData)
-      if ('error' in result && result.error) {
-        return { error: typeof result.error === 'string' ? result.error : 'Upload failed.' }
-      }
-      if ('warning' in result && result.warning) {
-        return { warning: result.warning }
-      }
-      return {}
-    } else {
-      // Large file: get a client token, upload directly to Blob, then index
-      const tokenRes = await fetch(`/api/documents/upload?filename=${encodeURIComponent(entry.file.name)}`)
-      const tokenData = await tokenRes.json()
-
-      if (!tokenRes.ok || !tokenData.clientToken) {
-        return { error: tokenData.error || 'Failed to get upload token' }
-      }
-
-      const blob = await blobPut(entry.file.name, entry.file, {
-        access: 'public',
-        token: tokenData.clientToken,
-        multipart: true,
-      })
-
-      const result = await indexUploadedDocument({
-        blobUrl: blob.url,
-        filename: entry.file.name,
-        documentType: entry.documentType,
-      })
-
-      if ('error' in result && result.error) {
-        return { error: typeof result.error === 'string' ? result.error : 'Indexing failed.' }
-      }
-      if ('warning' in result && result.warning) {
-        return { warning: result.warning }
-      }
-      return {}
+    const result = await uploadDocument(formData)
+    if ('error' in result && result.error) {
+      return { error: typeof result.error === 'string' ? result.error : 'Upload failed.' }
     }
+    if ('warning' in result && result.warning) {
+      return { warning: result.warning }
+    }
+    return {}
   }
 
   async function handleUploadAll() {
