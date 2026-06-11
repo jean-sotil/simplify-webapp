@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { uploadDocument } from '@/app/[lang]/documents/actions'
+import { put } from '@vercel/blob/client'
+import { uploadDocument, indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
   teamId: string
@@ -14,6 +15,9 @@ interface FileEntry {
   status: 'pending' | 'uploading' | 'success' | 'warning' | 'error'
   message?: string
 }
+
+// Files under this size go via Server Action (simpler, faster)
+const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024 // 4 MB
 
 // Vercel Fluid Compute enables larger body sizes for Server Actions
 export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
@@ -91,15 +95,53 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
   }
 
   async function uploadSingleFile(entry: FileEntry): Promise<{ error?: string; warning?: string }> {
-    // Server Action with Fluid Compute — supports large files
-    const formData = new FormData()
-    formData.set('file', entry.file)
-    formData.set('documentType', entry.documentType)
-    formData.set('teamId', teamId)
+    if (entry.file.size <= DIRECT_UPLOAD_LIMIT) {
+      // Small file: Server Action directly
+      const formData = new FormData()
+      formData.set('file', entry.file)
+      formData.set('documentType', entry.documentType)
+      formData.set('teamId', teamId)
 
-    const result = await uploadDocument(formData)
+      const result = await uploadDocument(formData)
+      if ('error' in result && result.error) {
+        return { error: typeof result.error === 'string' ? result.error : 'Upload failed.' }
+      }
+      if ('warning' in result && result.warning) {
+        return { warning: result.warning }
+      }
+      return {}
+    }
+
+    // Large file: client upload to Blob, then index via Server Action
+    // 1. Get a client token from our API
+    const tokenRes = await fetch(
+      `/api/documents/upload?filename=${encodeURIComponent(entry.file.name)}`
+    )
+    if (!tokenRes.ok) {
+      const err = await tokenRes.json().catch(() => ({}))
+      return { error: err.error || `Token request failed: ${tokenRes.status}` }
+    }
+    const { clientToken } = await tokenRes.json()
+    if (!clientToken) {
+      return { error: 'No client token received' }
+    }
+
+    // 2. Upload directly to Blob (bypasses 4.5 MB serverless limit)
+    const blob = await put(entry.file.name, entry.file, {
+      access: 'public',
+      token: clientToken,
+      multipart: true,
+    })
+
+    // 3. Index the uploaded file (text extraction + embeddings)
+    const result = await indexUploadedDocument({
+      blobUrl: blob.url,
+      filename: entry.file.name,
+      documentType: entry.documentType,
+    })
+
     if ('error' in result && result.error) {
-      return { error: typeof result.error === 'string' ? result.error : 'Upload failed.' }
+      return { error: typeof result.error === 'string' ? result.error : 'Indexing failed.' }
     }
     if ('warning' in result && result.warning) {
       return { warning: result.warning }
