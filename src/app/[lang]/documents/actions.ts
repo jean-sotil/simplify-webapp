@@ -178,10 +178,15 @@ export async function indexUploadedDocument(params: {
   let indexingWarning: string | null = null
 
   try {
-    const response = await fetch(blobUrl)
+    // Private blob store requires the read-write token for access
+    const response = await fetch(blobUrl, {
+      headers: {
+        'authorization': `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`,
+      },
+    })
     if (!response.ok) throw new Error(`Failed to fetch blob: ${response.status} ${response.statusText}`)
     const contentType = response.headers.get('content-type') ?? ''
-    if (!contentType.includes('pdf')) {
+    if (!contentType.includes('pdf') && !contentType.includes('octet-stream')) {
       throw new Error(`Unexpected content-type from blob: ${contentType}`)
     }
     const buffer = await response.arrayBuffer()
