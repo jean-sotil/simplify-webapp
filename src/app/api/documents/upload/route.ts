@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       allowedContentTypes: ['application/pdf'],
       maximumSizeInBytes: 50 * 1024 * 1024,
       addRandomSuffix: true,
+      validUntil: Date.now() + 5 * 60 * 1000, // 5 minutes
     })
 
     return NextResponse.json({ clientToken })
