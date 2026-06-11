@@ -21,7 +21,8 @@ export async function POST(request: NextRequest) {
     const jsonResponse = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async () => {
+      token: process.env.BLOB_READ_WRITE_TOKEN,
+      onBeforeGenerateToken: async (_pathname, _clientPayload, _multipart) => {
         const user = await getUser()
         if (!user) {
           throw new Error('Unauthorized')
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
         return {
           allowedContentTypes: ['application/pdf'],
           maximumSizeInBytes: 50 * 1024 * 1024, // 50 MB
+          addRandomSuffix: true,
           tokenPayload: JSON.stringify({ userId: user.id }),
         }
       },
@@ -40,6 +42,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(jsonResponse)
   } catch (error) {
+    console.error('[/api/documents/upload] Error:', error)
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Upload failed' },
       { status: 400 }
