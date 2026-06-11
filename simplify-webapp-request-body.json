@@ -2,14 +2,14 @@
   {
     "headers": {
       "host": "srv1193798.hstgr.cloud",
-      "x-real-ip": "98.84.57.65",
-      "x-forwarded-for": "98.84.57.65",
+      "x-real-ip": "54.237.201.50",
+      "x-forwarded-for": "54.237.201.50",
       "x-forwarded-proto": "https",
       "connection": "upgrade",
-      "content-length": "6567",
+      "content-length": "7506",
       "content-type": "application/json",
-      "x-vercel-id": "iad1::gq88d-1781216419692-d13802707c97",
-      "x-invocation-id": "iad1::gq88d-1781216419692-d13802707c97",
+      "x-vercel-id": "iad1::qj2rx-1781218555322-72979712997d",
+      "x-invocation-id": "iad1::qj2rx-1781218555322-72979712997d",
       "accept": "*/*",
       "accept-language": "*",
       "sec-fetch-mode": "cors",
@@ -64,6 +64,24 @@
           "filename": "optiplex-sff-spec-sheet-7020.pdf",
           "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/optiplex-sff-spec-sheet-7020-pn6j2djE35WepvLXSMfqyB3DIFBiQO.pdf",
           "documentType": "hardware"
+        },
+        {
+          "id": "193bee32-d550-491f-b393-fb2a7adb8cfb",
+          "filename": "MEMORIA DESCRIPTIVA - CONTROL DE ACCESO.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/MEMORIA%20DESCRIPTIVA%20-%20CONTROL%20DE%20ACCESO-CqKHH2X23Kw2NZVUS6E2FkiiS9gUnK.pdf",
+          "documentType": "software"
+        },
+        {
+          "id": "978a2eb2-3b63-47a1-a8f2-dc21b695ae47",
+          "filename": "CARPETA DIGITAL - CONTROL DE ACCESO - MOTUPE.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/CARPETA%20DIGITAL%20-%20CONTROL%20DE%20ACCESO%20-%20MOTUPE-ZdSWf2jiLpHLbtrGGJA94Vgvg1ajXg.pdf",
+          "documentType": "software"
+        },
+        {
+          "id": "4d643c8f-8af9-4b80-b341-1a1f4890c4e4",
+          "filename": "Carpeta Digital - Software de Gestión Centralizado - Motupe.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/Carpeta%20Digital%20-%20Software%20de%20Gesti%C3%B3n%20Centralizado%20-%20Motupe-wzibL0MfO9egkOZVnz4hYH8Zo14gSL.pdf",
+          "documentType": "software"
         }
       ],
       "webhookUrl": "https://simplify-webapp.vercel.app/api/webhooks/n8n",
@@ -175,7 +193,7 @@
               "documentId": "8f7fc264-f175-4673-ae6d-f636a86ab294",
               "filename": "DS-PD1-MC-MS.pdf",
               "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-PD1-MC-MS-s3ghdUFgvRoD90NhJsK8ue5kAOV4f0.pdf",
-              "similarityScore": 0.304468611311319,
+              "similarityScore": 0.304482971328507,
               "pageNumber": 1
             }
           ]

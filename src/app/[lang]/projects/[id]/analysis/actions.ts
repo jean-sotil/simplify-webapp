@@ -161,10 +161,10 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
   }))
 
   // Build the requirement trace map using ETT extracted text and the list of
-  // hardware document IDs.
+  // hardware + software document IDs (all non-ETT selected documents).
   const ettDocumentRows = documentRows.filter((row) => row.document_type === 'ett')
-  const hardwareDocumentIds = documentRows
-    .filter((row) => row.document_type === 'hardware')
+  const compareDocumentIds = documentRows
+    .filter((row) => row.document_type === 'hardware' || row.document_type === 'software')
     .map((row) => row.id as string)
 
   const ettDocsForTracing = ettDocumentRows.map((row) => ({
@@ -172,7 +172,7 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
     extractedText: (row.extracted_text as string | null) ?? '',
   }))
 
-  const requirements = await buildRequirementTraceMap(ettDocsForTracing, hardwareDocumentIds, supabase)
+  const requirements = await buildRequirementTraceMap(ettDocsForTracing, compareDocumentIds, supabase)
 
   // Enrich matched hardware document URLs
   const requirementsWithUrls = requirements.map((req) => ({
