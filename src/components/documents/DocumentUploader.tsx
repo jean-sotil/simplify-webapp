@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { uploadDocument } from '@/app/[lang]/documents/actions'
+import { upload } from '@vercel/blob/client'
+import { uploadDocument, indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
   teamId: string
@@ -14,6 +15,9 @@ interface FileEntry {
   status: 'pending' | 'uploading' | 'success' | 'warning' | 'error'
   message?: string
 }
+
+// Vercel serverless functions have a hard 4.5 MB request body limit
+const SERVER_ACTION_SIZE_LIMIT = 4 * 1024 * 1024 // 4 MB (safe margin)
 
 export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -41,7 +45,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
       if (error) {
         errors.push(error)
       } else {
-        // Avoid duplicates by name+size
         const isDuplicate = files.some(
           (f) => f.file.name === file.name && f.file.size === file.size
         )
@@ -52,7 +55,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
     }
 
     if (errors.length > 0) {
-      // Show errors as rejected entries
       for (const errMsg of errors) {
         entries.push({
           file: new File([], errMsg.split(':')[0]),
@@ -77,7 +79,7 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
   function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files.length > 0) {
       addFiles(e.target.files)
-      e.target.value = '' // reset so same files can be re-selected
+      e.target.value = ''
     }
   }
 
@@ -91,41 +93,70 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
     )
   }
 
+  async function uploadSingleFile(entry: FileEntry): Promise<{ error?: string; warning?: string }> {
+    if (entry.file.size <= SERVER_ACTION_SIZE_LIMIT) {
+      // Small file: use Server Action directly (faster, simpler)
+      const formData = new FormData()
+      formData.set('file', entry.file)
+      formData.set('documentType', entry.documentType)
+      formData.set('teamId', teamId)
+
+      const result = await uploadDocument(formData)
+      if ('error' in result && result.error) {
+        return { error: typeof result.error === 'string' ? result.error : 'Upload failed.' }
+      }
+      if ('warning' in result && result.warning) {
+        return { warning: result.warning }
+      }
+      return {}
+    } else {
+      // Large file: upload to Blob first (bypasses 4.5 MB limit), then index
+      const blob = await upload(entry.file.name, entry.file, {
+        access: 'public',
+        handleUploadUrl: '/api/documents/upload',
+        multipart: true,
+      })
+
+      const result = await indexUploadedDocument({
+        blobUrl: blob.url,
+        filename: entry.file.name,
+        documentType: entry.documentType,
+      })
+
+      if ('error' in result && result.error) {
+        return { error: typeof result.error === 'string' ? result.error : 'Indexing failed.' }
+      }
+      if ('warning' in result && result.warning) {
+        return { warning: result.warning }
+      }
+      return {}
+    }
+  }
+
   async function handleUploadAll() {
     const pendingFiles = files.filter((f) => f.status === 'pending')
     if (pendingFiles.length === 0) return
 
     setIsUploading(true)
 
-    // Process sequentially to avoid overwhelming the API
     for (let i = 0; i < files.length; i++) {
       const entry = files[i]
       if (entry.status !== 'pending') continue
 
-      // Mark as uploading
       setFiles((prev) =>
         prev.map((f, idx) => (idx === i ? { ...f, status: 'uploading' } : f))
       )
 
       try {
-        // Use Server Action directly — bodySizeLimit: '52mb' in next.config.ts
-        // allows files up to 52 MB via Server Actions on Vercel
-        const formData = new FormData()
-        formData.set('file', entry.file)
-        formData.set('documentType', entry.documentType)
-        formData.set('teamId', teamId)
+        const result = await uploadSingleFile(entry)
 
-        const result = await uploadDocument(formData)
-
-        if ('error' in result && result.error) {
+        if (result.error) {
           setFiles((prev) =>
             prev.map((f, idx) =>
-              idx === i
-                ? { ...f, status: 'error', message: typeof result.error === 'string' ? result.error : 'Upload failed.' }
-                : f
+              idx === i ? { ...f, status: 'error', message: result.error } : f
             )
           )
-        } else if ('warning' in result && result.warning) {
+        } else if (result.warning) {
           setFiles((prev) =>
             prev.map((f, idx) =>
               idx === i ? { ...f, status: 'warning', message: result.warning } : f
@@ -136,10 +167,12 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
             prev.map((f, idx) => (idx === i ? { ...f, status: 'success' } : f))
           )
         }
-      } catch {
+      } catch (err) {
         setFiles((prev) =>
           prev.map((f, idx) =>
-            idx === i ? { ...f, status: 'error', message: 'Network error' } : f
+            idx === i
+              ? { ...f, status: 'error', message: err instanceof Error ? err.message : 'Network error' }
+              : f
           )
         )
       }
@@ -226,7 +259,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
               className="flex items-center gap-3 border rounded-sm px-3 py-2 text-sm"
               style={{ borderColor: 'var(--color-hairline)' }}
             >
-              {/* Status indicator */}
               <span className="flex-shrink-0 w-5 text-center">
                 {entry.status === 'pending' && '📄'}
                 {entry.status === 'uploading' && (
@@ -237,7 +269,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
                 {entry.status === 'error' && '❌'}
               </span>
 
-              {/* Filename */}
               <span
                 className="flex-1 truncate"
                 style={{ color: 'var(--color-ink)' }}
@@ -251,7 +282,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
                 )}
               </span>
 
-              {/* Type selector (only for pending files) */}
               {entry.status === 'pending' && (
                 <select
                   value={entry.documentType}
@@ -265,7 +295,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
                 </select>
               )}
 
-              {/* Message */}
               {entry.message && (
                 <span
                   className="text-xs max-w-[200px] truncate"
@@ -280,7 +309,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
                 </span>
               )}
 
-              {/* Remove button (only for pending/error) */}
               {(entry.status === 'pending' || entry.status === 'error') && (
                 <button
                   type="button"
