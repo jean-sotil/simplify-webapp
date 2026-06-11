@@ -4,6 +4,9 @@ import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { DocumentUploader } from '@/components/documents/DocumentUploader'
 
+// Allow server actions called from this page up to 300s (large PDF processing)
+export const maxDuration = 300
+
 export async function generateMetadata(_props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
   return {
     title: 'Documents',
