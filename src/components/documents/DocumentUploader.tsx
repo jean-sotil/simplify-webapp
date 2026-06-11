@@ -130,7 +130,6 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
     const blob = await put(entry.file.name, entry.file, {
       access: 'public',
       token: clientToken,
-      multipart: true,
     })
 
     // 3. Index the uploaded file (text extraction + embeddings)
