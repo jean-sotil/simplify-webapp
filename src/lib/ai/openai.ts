@@ -27,8 +27,8 @@ const EMBEDDING_DIMENSIONS = 1536; // must match VECTOR(1536) in Supabase
  * Returns a number[] suitable for storing in a vector column.
  */
 export async function generateEmbedding(text: string): Promise<number[]> {
-  // Truncate to ~8000 tokens worth of text (safe limit for text-embedding-3-large)
-  const truncatedText = text.slice(0, 28_000)
+  // Truncate to ~6000 tokens worth of text (safe limit for 8192 token max)
+  const truncatedText = text.slice(0, 20_000)
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: truncatedText,
@@ -48,7 +48,7 @@ export async function generateEmbeddingsBatch(
   texts: string[]
 ): Promise<number[][]> {
   // Truncate each text to safe limit
-  const truncatedTexts = texts.map((t) => t.slice(0, 28_000))
+  const truncatedTexts = texts.map((t) => t.slice(0, 20_000))
   const response = await openai.embeddings.create({
     model: EMBEDDING_MODEL,
     input: truncatedTexts,

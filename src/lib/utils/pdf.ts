@@ -7,7 +7,7 @@ export class PdfExtractionError extends Error {
 
 // Max chars sent to the embedding API.
 // text-embedding-3-large supports ~8k tokens (~32k chars).
-const MAX_EMBED_CHARS = 30_000
+const MAX_EMBED_CHARS = 20_000
 
 export async function extractTextFromPdf(buffer: ArrayBuffer): Promise<string> {
   // unpdf is built for server/edge runtimes — no worker threads, no DOM deps.
