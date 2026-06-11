@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { upload } from '@vercel/blob/client'
+import { put as blobPut } from '@vercel/blob/client'
 import { uploadDocument, indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
@@ -110,10 +110,17 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
       }
       return {}
     } else {
-      // Large file: upload to Blob first (bypasses 4.5 MB limit), then index
-      const blob = await upload(entry.file.name, entry.file, {
+      // Large file: get a client token, upload directly to Blob, then index
+      const tokenRes = await fetch(`/api/documents/upload?filename=${encodeURIComponent(entry.file.name)}`)
+      const tokenData = await tokenRes.json()
+
+      if (!tokenRes.ok || !tokenData.clientToken) {
+        return { error: tokenData.error || 'Failed to get upload token' }
+      }
+
+      const blob = await blobPut(entry.file.name, entry.file, {
         access: 'public',
-        handleUploadUrl: '/api/documents/upload',
+        token: tokenData.clientToken,
         multipart: true,
       })
 
