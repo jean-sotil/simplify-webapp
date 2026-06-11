@@ -99,8 +99,8 @@ export type UpdateProject = z.infer<typeof UpdateProjectSchema>;
 // contexts (e.g. FormData parsing in a Server Action).
 // ---------------------------------------------------------------------------
 
-const DocumentTypeSchema = z.enum(["ett", "hardware"], {
-  message: "Document type must be either 'ett' or 'hardware'.",
+const DocumentTypeSchema = z.enum(["ett", "hardware", "software"], {
+  message: "Document type must be 'ett', 'hardware', or 'software'.",
 });
 
 export type DocumentType = z.infer<typeof DocumentTypeSchema>;

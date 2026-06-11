@@ -185,34 +185,59 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
                 : 'No documents matched your query.'}
             </p>
           ) : (
-            <ul
-              className="space-y-2 max-h-80 overflow-y-auto border rounded-md p-2 mb-6"
-              style={{ borderColor: 'var(--color-hairline)' }}
-            >
-              {results.map((doc) => {
-                const isSelected = selected.has(doc.id)
-                return (
-                  <li key={doc.id}>
-                    <label className="flex items-center gap-3 px-3 py-2 rounded-sm cursor-pointer hover:bg-gray-50">
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => toggleSelection(doc)}
-                        aria-label={`Select ${doc.filename}`}
-                        className="shrink-0"
-                      />
-                      <span
-                        className="flex-1 text-sm min-w-0 break-all leading-tight"
-                        style={{ color: 'var(--color-ink)' }}
-                        title={doc.filename}
-                      >
-                        {doc.filename}
-                      </span>
-                    </label>
-                  </li>
-                )
-              })}
-            </ul>
+            <>
+              {/* Select All / Deselect All buttons */}
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const allMap = new Map<string, SemanticSearchResult>()
+                    results.forEach((doc) => allMap.set(doc.id, doc))
+                    setSelected(allMap)
+                  }}
+                  className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
+                  style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+                >
+                  Select all
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelected(new Map())}
+                  className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
+                  style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
+                >
+                  Deselect all
+                </button>
+              </div>
+              <ul
+                className="space-y-2 max-h-80 overflow-y-auto border rounded-md p-2 mb-6"
+                style={{ borderColor: 'var(--color-hairline)' }}
+              >
+                {results.map((doc) => {
+                  const isSelected = selected.has(doc.id)
+                  return (
+                    <li key={doc.id}>
+                      <label className="flex items-center gap-3 px-3 py-2 rounded-sm cursor-pointer hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelection(doc)}
+                          aria-label={`Select ${doc.filename}`}
+                          className="shrink-0"
+                        />
+                        <span
+                          className="flex-1 text-sm min-w-0 break-all leading-tight"
+                          style={{ color: 'var(--color-ink)' }}
+                          title={doc.filename}
+                        >
+                          {doc.filename}
+                        </span>
+                      </label>
+                    </li>
+                  )
+                })}
+              </ul>
+            </>
           )}
         </section>
       )}

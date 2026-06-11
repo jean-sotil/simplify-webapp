@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     .select('id, filename, document_type, uploaded_at')
     .order('uploaded_at', { ascending: false })
 
-  if (type && (type === 'ett' || type === 'hardware')) {
+  if (type && (type === 'ett' || type === 'hardware' || type === 'software')) {
     query = query.eq('document_type', type)
   }
 

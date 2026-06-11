@@ -163,7 +163,7 @@ export async function uploadDocument(formData: FormData) {
 export async function indexUploadedDocument(params: {
   blobUrl: string
   filename: string
-  documentType: 'ett' | 'hardware'
+  documentType: 'ett' | 'hardware' | 'software'
   teamId?: string
 }) {
   const user = await requireAuth()

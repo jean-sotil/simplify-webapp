@@ -2,14 +2,14 @@
   {
     "headers": {
       "host": "srv1193798.hstgr.cloud",
-      "x-real-ip": "32.198.78.154",
-      "x-forwarded-for": "32.198.78.154",
+      "x-real-ip": "98.84.57.65",
+      "x-forwarded-for": "98.84.57.65",
       "x-forwarded-proto": "https",
       "connection": "upgrade",
-      "content-length": "4604",
+      "content-length": "6567",
       "content-type": "application/json",
-      "x-vercel-id": "iad1::lxd5n-1781215991583-91c3ca6fde4b",
-      "x-invocation-id": "iad1::lxd5n-1781215991583-91c3ca6fde4b",
+      "x-vercel-id": "iad1::gq88d-1781216419692-d13802707c97",
+      "x-invocation-id": "iad1::gq88d-1781216419692-d13802707c97",
       "accept": "*/*",
       "accept-language": "*",
       "sec-fetch-mode": "cors",
@@ -72,7 +72,29 @@
           "requirementId": "REQ-001",
           "text": "04 puerto USB traseros 3.0.\n Incluir Mouse y teclado del mismo fabricante del equipo.\n Se debe incluir monitor LED de 24” mínimo.\n Puerto Ethernet 10/100/1000 Mbps.\n Sistema operativo preinstalado y licenciado Windows 10 profesional o similar.\n Debe incluir antivirus con el licenciamiento correspondiente. La licencia antivirus será\ncomprendida en la plataforma antivirus del proyecto.",
           "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
-          "matchedHardwareDocuments": []
+          "matchedHardwareDocuments": [
+            {
+              "documentId": "6954c36a-b5e7-4fe5-aa1c-49becf7fc07c",
+              "filename": "DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401.pdf",
+              "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401-jPZpfn9UPcKrp8MYsdk2SjwQTBf1QZ.pdf",
+              "similarityScore": 0.372319278456131,
+              "pageNumber": 2
+            },
+            {
+              "documentId": "946a4366-2c8e-433e-af7c-a76143fc983d",
+              "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919.pdf",
+              "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919-xmeJdq9KTivqi2BVoyq6hyFQ9ieooL.pdf",
+              "similarityScore": 0.303432438537254,
+              "pageNumber": 2
+            },
+            {
+              "documentId": "c41b752b-88e8-4f17-adb2-5f59590ee322",
+              "filename": "optiplex-sff-spec-sheet-7020.pdf",
+              "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/optiplex-sff-spec-sheet-7020-pn6j2djE35WepvLXSMfqyB3DIFBiQO.pdf",
+              "similarityScore": 0.537791821367296,
+              "pageNumber": 9
+            }
+          ]
         },
         {
           "requirementId": "REQ-002",
@@ -120,19 +142,43 @@
           "requirementId": "REQ-009",
           "text": "Las alarmas deben evaluarse y responderse rápidamente. El sistema de\nseguridad presenta una gran cantidad de alarmas de una manera simple y\neficiente para garantizar que no se pase por alto ninguna alarma.",
           "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
-          "matchedHardwareDocuments": []
+          "matchedHardwareDocuments": [
+            {
+              "documentId": "946a4366-2c8e-433e-af7c-a76143fc983d",
+              "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919.pdf",
+              "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919-xmeJdq9KTivqi2BVoyq6hyFQ9ieooL.pdf",
+              "similarityScore": 0.30249803639672,
+              "pageNumber": 2
+            }
+          ]
         },
         {
           "requirementId": "REQ-010",
           "text": "El sistema debe reportar alarma visual y sonora por acceso a áreas restringidas.",
           "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
-          "matchedHardwareDocuments": []
+          "matchedHardwareDocuments": [
+            {
+              "documentId": "946a4366-2c8e-433e-af7c-a76143fc983d",
+              "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919.pdf",
+              "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919-xmeJdq9KTivqi2BVoyq6hyFQ9ieooL.pdf",
+              "similarityScore": 0.323330007788356,
+              "pageNumber": 2
+            }
+          ]
         },
         {
           "requirementId": "REQ-011",
           "text": "Alarma de apertura por acceso forzado de puertas principales en horario de no\noperación.",
           "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
-          "matchedHardwareDocuments": []
+          "matchedHardwareDocuments": [
+            {
+              "documentId": "8f7fc264-f175-4673-ae6d-f636a86ab294",
+              "filename": "DS-PD1-MC-MS.pdf",
+              "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-PD1-MC-MS-s3ghdUFgvRoD90NhJsK8ue5kAOV4f0.pdf",
+              "similarityScore": 0.304468611311319,
+              "pageNumber": 1
+            }
+          ]
         }
       ]
     },

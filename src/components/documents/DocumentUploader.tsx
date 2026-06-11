@@ -11,7 +11,7 @@ interface DocumentUploaderProps {
 
 interface FileEntry {
   file: File
-  documentType: 'ett' | 'hardware'
+  documentType: 'ett' | 'hardware' | 'software'
   status: 'pending' | 'uploading' | 'success' | 'warning' | 'error'
   message?: string
 }
@@ -23,7 +23,7 @@ const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024 // 4 MB
 export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
-  const [defaultDocType, setDefaultDocType] = useState<'ett' | 'hardware'>('hardware')
+  const [defaultDocType, setDefaultDocType] = useState<'ett' | 'hardware' | 'software'>('hardware')
   const [isDragOver, setIsDragOver] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
@@ -88,7 +88,7 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
     setFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
-  function updateFileType(index: number, type: 'ett' | 'hardware') {
+  function updateFileType(index: number, type: 'ett' | 'hardware' | 'software') {
     setFiles((prev) =>
       prev.map((f, i) => (i === index ? { ...f, documentType: type } : f))
     )
@@ -242,13 +242,14 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
         <select
           id="default-doc-type"
           value={defaultDocType}
-          onChange={(e) => setDefaultDocType(e.target.value as 'ett' | 'hardware')}
+          onChange={(e) => setDefaultDocType(e.target.value as 'ett' | 'hardware' | 'software')}
           disabled={isUploading}
           className="w-full border rounded-sm px-4 py-3 text-sm bg-white focus:outline-none"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         >
           <option value="ett">ETT (Engineering Technical Spec)</option>
           <option value="hardware">Hardware Inventory</option>
+          <option value="software">Software Inventory</option>
         </select>
       </div>
 
@@ -287,13 +288,14 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
               {entry.status === 'pending' && (
                 <select
                   value={entry.documentType}
-                  onChange={(e) => updateFileType(index, e.target.value as 'ett' | 'hardware')}
+                  onChange={(e) => updateFileType(index, e.target.value as 'ett' | 'hardware' | 'software')}
                   className="border rounded-sm px-2 py-1 text-xs bg-white"
                   style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
                   aria-label={`Document type for ${entry.file.name}`}
                 >
                   <option value="ett">ETT</option>
                   <option value="hardware">Hardware</option>
+                  <option value="software">Software</option>
                 </select>
               )}
 
