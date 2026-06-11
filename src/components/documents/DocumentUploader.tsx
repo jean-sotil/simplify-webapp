@@ -115,7 +115,7 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
     // Large file: client upload to Blob, then index via Server Action
     // 1. Upload via SDK's upload() which handles token exchange + CORS internally
     const blob = await upload(entry.file.name, entry.file, {
-      access: 'public',
+      access: 'private',
       handleUploadUrl: '/api/documents/upload',
     })
 
