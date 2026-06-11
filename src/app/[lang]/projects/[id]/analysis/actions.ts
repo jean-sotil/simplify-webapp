@@ -7,7 +7,6 @@ import { getUser } from '@/lib/auth'
 import { SelectedDocumentSchema, type TracedRequirement, type MatchedHardwareDocument } from '@/lib/validation/schemas'
 import { triggerN8nWorkflow } from '@/lib/n8n/client'
 import { generateEmbeddingsBatch } from '@/lib/ai/openai'
-import { searchDocumentsByEmbedding } from '@/lib/search/semantic'
 import { extractRequirementsFromETT } from '@/lib/analysis/requirement-extraction'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { z } from 'zod'
@@ -36,7 +35,7 @@ async function requireAuth() {
 async function buildRequirementTraceMap(
   ettDocuments: Array<{ id: string; extractedText: string }>,
   hardwareDocumentIds: string[],
-  supabase: SupabaseClient,
+  _supabase: SupabaseClient,
 ): Promise<TracedRequirement[]> {
   try {
     // Step 1: extract clean requirements using intelligent extraction
@@ -63,15 +62,33 @@ async function buildRequirementTraceMap(
     const requirementTexts = requirementCandidates.map((c) => c.text)
     const embeddings = await generateEmbeddingsBatch(requirementTexts)
 
-    // Step 3: for each embedding, run a scoped similarity search restricted
-    // to the hardware documents selected for this analysis run.
-    const searchPromises = embeddings.map((embedding) =>
-      searchDocumentsByEmbedding(embedding, supabase, {
-        limit: 3,
-        threshold: 0.60,
-        documentIds: hardwareDocumentIds,
-      }),
-    )
+    // Step 3: for each embedding, use supabaseAdmin with search_documents_by_embedding
+    // (bypasses RLS — the old search_documents_semantic requires auth.uid() which
+    // fails when documents were uploaded by a different user)
+    const SIMILARITY_THRESHOLD = 0.60
+    const MATCH_COUNT = 3
+
+    const searchPromises = embeddings.map(async (embedding) => {
+      const { data, error } = await supabaseAdmin.rpc('search_documents_by_embedding', {
+        query_embedding: embedding,
+        doc_ids: hardwareDocumentIds,
+        match_count: MATCH_COUNT,
+        similarity_threshold: SIMILARITY_THRESHOLD,
+      })
+
+      if (error || !data) {
+        console.warn('[buildRequirementTraceMap] RPC error:', error)
+        return []
+      }
+
+      return (data as Array<{ id: string; filename: string; document_type: string; similarity: number }>).map((row) => ({
+        id: row.id,
+        filename: row.filename,
+        document_type: row.document_type,
+        similarity: Math.min(1, Math.max(0, row.similarity)),
+        uploaded_at: '',
+      }))
+    })
 
     const searchResultsPerRequirement = await Promise.all(searchPromises)
 
