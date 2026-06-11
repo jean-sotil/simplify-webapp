@@ -7,7 +7,8 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { DocumentUploadSchema } from '@/lib/validation/schemas'
 import { extractTextFromPdf } from '@/lib/utils/pdf'
-import { generateEmbedding } from '@/lib/ai/openai'
+import { chunkPdfText } from '@/lib/utils/pdf-chunker'
+import { generateEmbedding, generateEmbeddingsBatch } from '@/lib/ai/openai'
 
 async function requireAuth() {
   const user = await getUser()
@@ -69,7 +70,7 @@ export async function uploadDocument(formData: FormData) {
     console.error('[uploadDocument] PDF extraction error:', err)
   }
 
-  // Generate embedding only when we have text to embed
+  // Generate a whole-document embedding (kept for backward compatibility)
   let embedding: number[] | null = null
   if (extractedText) {
     try {
@@ -98,6 +99,44 @@ export async function uploadDocument(formData: FormData) {
     .single()
 
   if (dbError) return { error: dbError.message }
+
+  // ─── Chunked Embeddings ────────────────────────────────────────────────────
+  // Generate per-page/section chunks and embed them individually for better
+  // semantic search granularity (hardware docs especially benefit from this).
+  if (extractedText && document) {
+    try {
+      const chunks = chunkPdfText(extractedText)
+      if (chunks.length > 0) {
+        // Batch embed all chunks (API supports up to 2048 inputs per call)
+        const BATCH_SIZE = 50
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          const batch = chunks.slice(i, i + BATCH_SIZE)
+          const texts = batch.map((c) => c.text)
+          const embeddings = await generateEmbeddingsBatch(texts)
+
+          const rows = batch.map((chunk, idx) => ({
+            document_id: document.id,
+            chunk_index: chunk.chunkIndex,
+            page_number: chunk.pageNumber,
+            chunk_text: chunk.text,
+            embedding: embeddings[idx],
+          }))
+
+          const { error: chunkError } = await supabaseAdmin
+            .from('document_chunks')
+            .insert(rows)
+
+          if (chunkError) {
+            console.error('[uploadDocument] Chunk insert error:', chunkError)
+            indexingWarning = indexingWarning ?? 'Some chunks failed to index'
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[uploadDocument] Chunking pipeline error:', err)
+      indexingWarning = indexingWarning ?? `Chunking failed: ${err instanceof Error ? err.message : 'unknown error'}`
+    }
+  }
 
   await supabaseAdmin.from('audit_logs').insert({
     user_id: user.id,

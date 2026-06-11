@@ -200,6 +200,12 @@ export const MatchedHardwareDocumentSchema = z.object({
     .number()
     .min(0)
     .max(1),
+
+  pageNumber: z
+    .number()
+    .int()
+    .positive()
+    .optional(),
 });
 
 export type MatchedHardwareDocument = z.infer<typeof MatchedHardwareDocumentSchema>;

@@ -62,14 +62,13 @@ async function buildRequirementTraceMap(
     const requirementTexts = requirementCandidates.map((c) => c.text)
     const embeddings = await generateEmbeddingsBatch(requirementTexts)
 
-    // Step 3: for each embedding, use supabaseAdmin with search_documents_by_embedding
-    // (bypasses RLS — the old search_documents_semantic requires auth.uid() which
-    // fails when documents were uploaded by a different user)
-    const SIMILARITY_THRESHOLD = 0.60
+    // Step 3: for each embedding, search in document CHUNKS (not whole-document embeddings)
+    // This provides much better similarity scores because chunks are shorter and more focused.
+    const SIMILARITY_THRESHOLD = 0.55
     const MATCH_COUNT = 3
 
     const searchPromises = embeddings.map(async (embedding) => {
-      const { data, error } = await supabaseAdmin.rpc('search_documents_by_embedding', {
+      const { data, error } = await supabaseAdmin.rpc('search_chunks_by_embedding_grouped', {
         query_embedding: embedding,
         doc_ids: hardwareDocumentIds,
         match_count: MATCH_COUNT,
@@ -81,11 +80,12 @@ async function buildRequirementTraceMap(
         return []
       }
 
-      return (data as Array<{ id: string; filename: string; document_type: string; similarity: number }>).map((row) => ({
-        id: row.id,
+      return (data as Array<{ document_id: string; filename: string; document_type: string; page_number: number | null; chunk_text: string; similarity: number }>).map((row) => ({
+        id: row.document_id,
         filename: row.filename,
         document_type: row.document_type,
         similarity: Math.min(1, Math.max(0, row.similarity)),
+        page_number: row.page_number,
         uploaded_at: '',
       }))
     })
@@ -99,6 +99,7 @@ async function buildRequirementTraceMap(
         filename: result.filename,
         originalFileUrl: '',
         similarityScore: result.similarity,
+        pageNumber: result.page_number ?? undefined,
       }))
 
       return {
