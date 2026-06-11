@@ -2,14 +2,14 @@
   {
     "headers": {
       "host": "srv1193798.hstgr.cloud",
-      "x-real-ip": "32.194.158.117",
-      "x-forwarded-for": "32.194.158.117",
+      "x-real-ip": "32.198.78.154",
+      "x-forwarded-for": "32.198.78.154",
       "x-forwarded-proto": "https",
       "connection": "upgrade",
-      "content-length": "4359",
+      "content-length": "4604",
       "content-type": "application/json",
-      "x-vercel-id": "iad1::vlnn6-1781190089392-40ea5db87745",
-      "x-invocation-id": "iad1::vlnn6-1781190089392-40ea5db87745",
+      "x-vercel-id": "iad1::lxd5n-1781215991583-91c3ca6fde4b",
+      "x-invocation-id": "iad1::lxd5n-1781215991583-91c3ca6fde4b",
       "accept": "*/*",
       "accept-language": "*",
       "sec-fetch-mode": "cors",
@@ -24,39 +24,45 @@
       "analysisId": "cabac2e4-2fba-435f-8916-116346d7a352",
       "selectedDocuments": [
         {
-          "id": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "id": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "filename": "EETT CONTROL DE ACCESO.pdf",
-          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/EETT%20CONTROL%20DE%20ACCESO-DHd6QSC8doY7MrzVdTIQxE2q793Swr.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/EETT%20CONTROL%20DE%20ACCESO-EosWtvPsbthfHmlmvOHJlfhnx1UAPJ.pdf",
           "documentType": "ett"
         },
         {
-          "id": "aa05e6fe-080b-41ab-8f7d-2d5636717ec5",
+          "id": "6954c36a-b5e7-4fe5-aa1c-49becf7fc07c",
           "filename": "DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401.pdf",
-          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401-J6zv8kgZiOF797QPMwWDoURbYfmbyI.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401-jPZpfn9UPcKrp8MYsdk2SjwQTBf1QZ.pdf",
           "documentType": "hardware"
         },
         {
-          "id": "ec676f04-5e01-42fa-a44f-b11a968ea8ab",
-          "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919 (1).pdf",
-          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919%20%281%29-VYdbX9V5BO8I4BCncandM43Al7YTpN.pdf",
+          "id": "946a4366-2c8e-433e-af7c-a76143fc983d",
+          "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919-xmeJdq9KTivqi2BVoyq6hyFQ9ieooL.pdf",
           "documentType": "hardware"
         },
         {
-          "id": "0e17ad1a-ba33-4ee4-8796-d4719d800426",
+          "id": "56a663e2-4eb7-4573-855b-9d7d26bb3af9",
           "filename": "DS-K7P01_Datasheet_20231213.pdf",
-          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K7P01_Datasheet_20231213-QsrIb3SsaLmyzf3ZMpXG7dRZdWAZQD.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K7P01_Datasheet_20231213-Sl7iKc0loewXhe7G6OYgHvzEgFWUG6.pdf",
           "documentType": "hardware"
         },
         {
-          "id": "80a31be2-d062-450c-ab7e-142ab9fe27ba",
+          "id": "bcbc4903-700e-4261-8d58-babe9f1a45be",
           "filename": "DS-K4H258S_Datasheet_20231213.pdf",
-          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K4H258S_Datasheet_20231213-0kuFp96sA7q2T54zWzI0oCjEXzRBaP.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K4H258S_Datasheet_20231213-llzhDKKSNIbSK09qhbGr077EUpRlIE.pdf",
           "documentType": "hardware"
         },
         {
-          "id": "051e8a72-5d6b-4570-a72a-658a86116821",
+          "id": "8f7fc264-f175-4673-ae6d-f636a86ab294",
           "filename": "DS-PD1-MC-MS.pdf",
-          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-PD1-MC-MS-Aqoypi3YOWvJqR9qor2UG1qLw0PKDl.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-PD1-MC-MS-s3ghdUFgvRoD90NhJsK8ue5kAOV4f0.pdf",
+          "documentType": "hardware"
+        },
+        {
+          "id": "c41b752b-88e8-4f17-adb2-5f59590ee322",
+          "filename": "optiplex-sff-spec-sheet-7020.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/optiplex-sff-spec-sheet-7020-pn6j2djE35WepvLXSMfqyB3DIFBiQO.pdf",
           "documentType": "hardware"
         }
       ],
@@ -65,67 +71,67 @@
         {
           "requirementId": "REQ-001",
           "text": "04 puerto USB traseros 3.0.\n Incluir Mouse y teclado del mismo fabricante del equipo.\n Se debe incluir monitor LED de 24” mínimo.\n Puerto Ethernet 10/100/1000 Mbps.\n Sistema operativo preinstalado y licenciado Windows 10 profesional o similar.\n Debe incluir antivirus con el licenciamiento correspondiente. La licencia antivirus será\ncomprendida en la plataforma antivirus del proyecto.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-002",
           "text": "Reporte de entradas/salidas autorizadas y no autorizadas.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-003",
           "text": "Reporte general de usuarios autorizados.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-004",
           "text": "Informe de alarmas principals.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-005",
           "text": "Reportes automáticos de eventos por tiempo.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-006",
           "text": "Reporte de actividades por puerta.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-007",
           "text": "Reporte de actividades por cardholder.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-008",
           "text": "Reporte de actividades por usuario.\n Alarmas:",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-009",
           "text": "Las alarmas deben evaluarse y responderse rápidamente. El sistema de\nseguridad presenta una gran cantidad de alarmas de una manera simple y\neficiente para garantizar que no se pase por alto ninguna alarma.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-010",
           "text": "El sistema debe reportar alarma visual y sonora por acceso a áreas restringidas.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         },
         {
           "requirementId": "REQ-011",
           "text": "Alarma de apertura por acceso forzado de puertas principales en horario de no\noperación.",
-          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "sourceDocumentId": "cad3443d-f0ce-4938-9cfc-d16d79137ab1",
           "matchedHardwareDocuments": []
         }
       ]

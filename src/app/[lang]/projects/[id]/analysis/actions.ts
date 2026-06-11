@@ -64,7 +64,8 @@ async function buildRequirementTraceMap(
 
     // Step 3: for each embedding, search in document CHUNKS (not whole-document embeddings)
     // This provides much better similarity scores because chunks are shorter and more focused.
-    const SIMILARITY_THRESHOLD = 0.55
+    // Note: threshold is low because ETT requirements are in Spanish while hardware docs are in English
+    const SIMILARITY_THRESHOLD = 0.30
     const MATCH_COUNT = 3
 
     const searchPromises = embeddings.map(async (embedding) => {
