@@ -10,6 +10,9 @@ import { extractTextFromPdf } from '@/lib/utils/pdf'
 import { chunkPdfText } from '@/lib/utils/pdf-chunker'
 import { generateEmbedding, generateEmbeddingsBatch } from '@/lib/ai/openai'
 
+// Allow up to 300 seconds for large PDFs (text extraction + embedding generation)
+export const maxDuration = 300
+
 async function requireAuth() {
   const user = await getUser()
   if (!user) throw new Error('Unauthorized')
