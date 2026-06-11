@@ -1,8 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { upload } from '@vercel/blob/client'
-import { indexUploadedDocument } from '@/app/[lang]/documents/actions'
+import { uploadDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
   teamId: string
@@ -16,7 +15,7 @@ interface FileEntry {
   message?: string
 }
 
-export function DocumentUploader({ teamId: _teamId, lang: _lang }: DocumentUploaderProps) {
+export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
   const [defaultDocType, setDefaultDocType] = useState<'ett' | 'hardware'>('hardware')
@@ -109,18 +108,14 @@ export function DocumentUploader({ teamId: _teamId, lang: _lang }: DocumentUploa
       )
 
       try {
-        // Step 1: Upload file directly to Vercel Blob (client → Blob, bypasses 4.5MB limit)
-        const blob = await upload(entry.file.name, entry.file, {
-          access: 'public',
-          handleUploadUrl: '/api/documents/upload',
-        })
+        // Use Server Action directly — bodySizeLimit: '52mb' in next.config.ts
+        // allows files up to 52 MB via Server Actions on Vercel
+        const formData = new FormData()
+        formData.set('file', entry.file)
+        formData.set('documentType', entry.documentType)
+        formData.set('teamId', teamId)
 
-        // Step 2: Server action indexes the uploaded file (text extraction + embeddings)
-        const result = await indexUploadedDocument({
-          blobUrl: blob.url,
-          filename: entry.file.name,
-          documentType: entry.documentType,
-        })
+        const result = await uploadDocument(formData)
 
         if ('error' in result && result.error) {
           setFiles((prev) =>
