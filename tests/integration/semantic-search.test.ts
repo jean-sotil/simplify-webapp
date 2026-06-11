@@ -65,9 +65,6 @@ describe.skipIf(!hasEnvVars)('semanticSearchDocuments', () => {
   })
 
   it('returns antenna document with higher similarity than procurement document for RF query', async () => {
-    // semanticSearchDocuments now requires an authenticated SupabaseClient.
-    // Integration tests use supabaseAdmin which bypasses RLS — acceptable for
-    // seeded test data isolation.
     const results = await semanticSearchDocuments('antenna RF specifications', supabaseAdmin)
 
     expect(results.length).toBeGreaterThan(0)

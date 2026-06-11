@@ -1,0 +1,262 @@
+[
+  {
+    "headers": {
+      "host": "srv1193798.hstgr.cloud",
+      "x-real-ip": "3.86.251.94",
+      "x-forwarded-for": "3.86.251.94",
+      "x-forwarded-proto": "https",
+      "connection": "upgrade",
+      "content-length": "19807",
+      "content-type": "application/json",
+      "x-vercel-id": "iad1::bhvbd-1781149807741-e3f380879f5b",
+      "x-invocation-id": "iad1::bhvbd-1781149807741-e3f380879f5b",
+      "accept": "*/*",
+      "accept-language": "*",
+      "sec-fetch-mode": "cors",
+      "user-agent": "node",
+      "accept-encoding": "br, gzip, deflate"
+    },
+    "params": {},
+    "query": {},
+    "body": {
+      "projectId": "a58f9a59-bf85-4d97-a0e4-db44365a495d",
+      "projectName": "Hospital Motupe",
+      "analysisId": "cabac2e4-2fba-435f-8916-116346d7a352",
+      "selectedDocuments": [
+        {
+          "id": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "filename": "EETT CONTROL DE ACCESO.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/EETT%20CONTROL%20DE%20ACCESO-DHd6QSC8doY7MrzVdTIQxE2q793Swr.pdf",
+          "documentType": "ett"
+        },
+        {
+          "id": "aa05e6fe-080b-41ab-8f7d-2d5636717ec5",
+          "filename": "DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401-J6zv8kgZiOF797QPMwWDoURbYfmbyI.pdf",
+          "documentType": "hardware"
+        },
+        {
+          "id": "ec676f04-5e01-42fa-a44f-b11a968ea8ab",
+          "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919 (1).pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919%20%281%29-VYdbX9V5BO8I4BCncandM43Al7YTpN.pdf",
+          "documentType": "hardware"
+        },
+        {
+          "id": "0e17ad1a-ba33-4ee4-8796-d4719d800426",
+          "filename": "DS-K7P01_Datasheet_20231213.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K7P01_Datasheet_20231213-QsrIb3SsaLmyzf3ZMpXG7dRZdWAZQD.pdf",
+          "documentType": "hardware"
+        },
+        {
+          "id": "80a31be2-d062-450c-ab7e-142ab9fe27ba",
+          "filename": "DS-K4H258S_Datasheet_20231213.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K4H258S_Datasheet_20231213-0kuFp96sA7q2T54zWzI0oCjEXzRBaP.pdf",
+          "documentType": "hardware"
+        },
+        {
+          "id": "051e8a72-5d6b-4570-a72a-658a86116821",
+          "filename": "DS-PD1-MC-MS.pdf",
+          "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-PD1-MC-MS-Aqoypi3YOWvJqR9qor2UG1qLw0PKDl.pdf",
+          "documentType": "hardware"
+        }
+      ],
+      "webhookUrl": "https://simplify-webapp.vercel.app/api/webhooks/n8n",
+      "requirements": [
+        {
+          "requirementId": "REQ-001",
+          "text": "NUEVO HOSPITAL MOTUPE\n“Mejoramiento de los Servicios de Salud del Establecimiento\nde Salud Motupe, Distrito de Motupe, Provincia de",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-002",
+          "text": "Av. Circunvalación del Club Golf Los Incas Nº154, Of. 501, Santiago de Surco Página89\no Tecnología LED.\no Angulo de visión 178°.\n Audio:\no Sistema de sonido 10W.\no Con optimizador de sonido.\no Sintonizadores:\no Debe incluir receptor de cable DVB-C, antena cable y antena RF terrestre.\n Video:\no Con reducción de ruido y optimizador de color.\n Conectividad:\no Puerto RJ45 – Ethernet.\n Mínimo 2 entradas HDMI y 2 entradas USB.\n Debe soportar conexión con Smartphone\n Debe incluir Racks de pared o techo para los televisores",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-003",
+          "text": "06.10.01.07 ANTENA AÉREA EXTERNA\n Ubicación: Último piso.\n Multicanal y multifrecuencia.\n Conector tipo F.\n Se instalará una antena receptora lo suficientemente potente para que la señal se\nvea nítida en todo el edificio, la misma que podrá recepcionar señales en HD.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-004",
+          "text": "06.10.01.08 CONFIGURACION, PRUEBAS Y PUESTA EN MARCHA DEL SISTEMA TVIP\n Corresponde a la instalación de los equipos y su configuración, para su posterior puesta\nen marcha.\n Estas actividades se realizan con el consentimiento de la supervisión, aplicando las\nnormativas, reglamentaciones, y BUENAS PRACTICAS de ingeniería. Los trabajos\ndeben quedar a conformidad total de la supervisión.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-005",
+          "text": "El plano indica la ubicación de los ambientes donde se implementará el sistema de control de\naccesos.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-006",
+          "text": "Para el presente sistema se considera que el software de servidor será instalado en una máquina\nvirtual sobre el servidor del Sistema de Procesamiento Centralizado. Dicha máquina virtual será\nconfigurada con los requerimientos técnicos del fabricante.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-007",
+          "text": "En caso el fabricante proponga servidor independiente o appliance de la marca, se realizará la\ninstalación de acuerdo con la propuesta del fabricante, NO generando esto un costo adicional\npara el proyecto.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-008",
+          "text": "El sistema de control de acceso y seguridad debe integrarse con los sistemas de CCTV, y",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-009",
+          "text": "NUEVO HOSPITAL MOTUPE\n“Mejoramiento de los Servicios de Salud del Establecimiento\nde Salud Motupe, Distrito de Motupe, Provincia de",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-010",
+          "text": "Av. Circunvalación del Club Golf Los Incas Nº154, Of. 501, Santiago de Surco Página90",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-011",
+          "text": "06.11.01.01 ESTACION DE TRABAJO, INC LECTOR BIOMETRICO PARA TOMA DE",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-012",
+          "text": "DATOS\n Procesador de 4 núcleos, 08 subprocesos / de última generación en el mercado / fabricante\n Frecuencia de reloj: 3.6GHz, 6 MB de memoria cache o superior.\n Fecha de lanzamiento al mercado no mayor a 01 año previo a la fecha de compra.\n Memoria RAM 16 GB DDR4 o superior.\n Almacenamiento: 1TB\n Arquitectura de 64 bits.\n Unidad óptica 16X DVD +/- RW Sata.\n Tarjeta gráfica de 4 GB DDR5 o superior con salida HDMI, disk Port o DVI.\n Puertos periféricos:\no 02 puertos USB frontal 2.0.\no 04 puerto USB traseros 3.0.\n Incluir Mouse y teclado del mismo fabricante del equipo.\n Se debe incluir monitor LED de 24” mínimo.\n Puerto Ethernet 10/100/1000 Mbps.\n Sistema operativo preinstalado y licenciado Windows 10 profesional o similar.\n Debe incluir antivirus con el licenciamiento correspondiente. La licencia antivirus será\ncomprendida en la plataforma antivirus del proyecto.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-013",
+          "text": "06.11.01.02 CERRADURA ELECTROMAGNÉTICA (ELECTROIMAN) (INC. BATERIA",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-014",
+          "text": "PARA RESPALDO MIN 15 MINUTOS)\n Debe soportar 600 LBS de fuerza o superior antes de ceder a la apertura de puerta.\n Debe operar con Voltaje de alimentación de 12VDC o 24VDC.\n Debe recibir alimentación desde la unidad de control de acceso.\n Material: aluminio anodizado.\n Debe poseer fuente de alimentación correspondiente.\n Debe poseer protección contra sobretensiones.\n Certificación UL o similar.\n Debe poseer indicador led de estado de puerta.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-015",
+          "text": "Los contactos magnéticos deberán ser de reconocidas marcas internacionales de sistemas de\nseguridad.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-016",
+          "text": "Los contactos magnéticos deben de cumplir los siguientes requisitos mínimos:\n Listado por UL o similar.\n Para ser instalado en puertas.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-017",
+          "text": "06.11.01.04 CONTROLADORA IP POR PUERTA, LECTOR DE PROXIMIDAD EN MURO\nh=1.20 m (INC. PULSADOR DE SALIDA EN LADO OPUESTO)\n El controlador de acceso debe ser nativo Ethernet IP.\n El sistema de control de acceso es expandible en número de entradas y salidas, cuenta\ncon una arquitectura modular ampliable en número de módulos de control de puerta.\n Incluye el lector biométrico.\n El controlador debe contar con un procesador dedicado para el procesamiento de las\nentradas de las lectoras.\n Los controladores de acceso deben tener la capacidad de almacenar hasta 60 000 eventos\nen modo offline, de tal forma que les permita funcionar en forma autónoma ante una falla\nde comunicación con el servidor y la base de datos. El controlador debe manejar seguridad",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-018",
+          "text": "NUEVO HOSPITAL MOTUPE\n“Mejoramiento de los Servicios de Salud del Establecimiento\nde Salud Motupe, Distrito de Motupe, Provincia de",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-019",
+          "text": "Av. Circunvalación del Club Golf Los Incas Nº154, Of. 501, Santiago de Surco Página91\nen su comunicación sobre la red Ethernet utilizando encriptación AES 128 bits, y poseer\ncertificación UL, EN, RoHS, WEEE.\n El sistema debe permitir la configuración de múltiple validación para áreas especiales sin\nnecesidad de adicionar módulos de hardware y/o software.\n El controlador debe tener la opción de alimentación de voltaje a 12 VDC (controladores de\n1 puerta) y 16 VAC con batería de respaldo (controladores de 4 puertas)\n El controlador debe funcionar bajo condiciones de temperaturas entre 35 a 120 °F (2 a 40\n°C) o superior.\n El controlador debe funcionar bajo condiciones de humedad relativa en un rango del 0%\nal 85% sin condensación.\n El controlador debe tener un puerto Ethernet 10/100 Base-T (RJ45).\n El controlador debe tener un puerto serial RS-485 para la conexión de módulos de\nexpansión (inputs/outputs) y paneles controladores, conexión a lectores biométricos.\n El controlador debe contar con hasta 4 puertos de lectoras, cada puerto podrá ser\nconfigurado independientemente para soportar formato Wiegand o XSF.\n La comunicación entre las lectoras biométricas o lectoras RFID y los controladores de\nacceso debe ser a través de los protocolos Wiegand o similar.\n El sistema de control de acceso debe contar con lectoras que soporten soluciones RFID",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-020",
+          "text": "Multi-Tecnología, tales como tecnología MIFARE DESFire, MIFARE Classic y 125 KHz.\n El controlador debe tener hasta 16 entradas universales (análogas y/o digitales) que\npueden ser configuradas como supervisadas o para propósito general, para recibir\nperiféricos de control de puertas, como contactos magnéticos, botones de apertura,\nbotones de pánico, etc.\n El controlador debe tener 2 salidas vivas (12VDC) forma C (250V max) para control de\nelectroimanes, cantoneras y/o cerraduras eléctricas (se deberá usar relay activador y\nfuente externa).\n El controlador debe ser capaz de alimentar las lectoras biométricas o PIN 5VDC o 12VDC,\n250mA típico por lector.\n El controlador debe soportar una distancia máxima de conexión de las lectoras de 150\nmetros con cable 22 AWG.\n El sistema debe permitir supervisión de cableado.\n El controlador debe estar listado en FCC Class B, EN61000-6-1, EN61000-6-2, EN55032,",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-021",
+          "text": "LECTOR BIOMÉTRICO\n Algoritmo biométrico dactilar y/o facial, rápido y preciso\n La validación del lector deberá ser por PIN + lector biométrico (huella dactilar y/o",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-022",
+          "text": "Reconocimiento facial).\n Tecnología Multiespectral que captura huella viva\n OPCIONAL, Lectura de múltiplex tarjetas RFID iCLASS SE, MIFARE, DESFire, Mifare",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-023",
+          "text": "Clasic and HID Mobile Access).\n Autenticación exigida: PIN + huella dactilar y/o reconocimiento facial.\n Autenticación opcional: PIN + huella dactilar y/o reconocimiento facial + tarjeta RFID.\n Tipo de sensor: Óptico (multiespectral).\n Voltaje de operación: 12VDC.\n Soporta hasta 250000 usuarios en el dispositivo.\n Max. Numero Eventos: 1,000,000\n LED: Multi color.\n Sonido: Multi tono.\n RS-485: 1ch, OSDP",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-024",
+          "text": "NUEVO HOSPITAL MOTUPE\n“Mejoramiento de los Servicios de Salud del Establecimiento\nde Salud Motupe, Distrito de Motupe, Provincia de",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-025",
+          "text": "Av. Circunvalación del Club Golf Los Incas Nº154, Of. 501, Santiago de Surco Página92\n Wiegand: 1 ch\n TTL: 1 CH entrada/salida seleccionable.\n Protección de ingreso: IP67.\n Protección contra impactos: IK09.\n Temperatura de funcionamiento: -20°C a 66°C.\n Humedad de funcionamiento: 0% a 95% no condensado.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-026",
+          "text": "Pulsador De Salida\n Listado por UL o similar\n Ser montado en caja de 100 x 50 x 50 mm.\n Acabado metálico pulido (la placa).\n Pulsador de color, para activar con palma de la mano o dedo.\n Señalizado con la palabra SALIDA o EXIT.\n Retornar a posición original luego de ser pulsado.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-027",
+          "text": "06.11.01.05 SOFTWARE DE GESTION CENTRALIZADO\n El licenciamiento a ser entregado por el proveedor comprende a todos los clientes y\nusuarios, para toda la solución del Control de Acceso. Deberá tener opción para manejo\nde servidor redundante y base de datos espejo para el caso de fallos.\n Licencia del software del sistema operativo WINDOWS SERVER 2016 o superior\nincluyendo los microprocesadores y sus núcleos del servidor perpetuo.\n Licencia del software del sistema operativo Windows 10 profesional o superior para\nestación de trabajo perpetuo.\n Deberá incluir algún otro software si es requerido por el sistema para su funcionamiento\ncon su respectivo licenciamiento perpetuo.\n El proveedor asumirá todos los gastos que fueran necesarios en el proceso de instalación\ny operatividad del mismo y se realizara en donde designe el establecimiento o salud",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-028",
+          "text": "CONSIDERACIONES\n El sistema requiere que cada usuario tenga una cuenta. El acceso se puede otorgar a\ntravés de una cuenta creada por la aplicación del sistema de seguridad o mediante la\nmisma cuenta de Windows utilizada para iniciar sesión en la PC. Esto garantiza que las\npolíticas de TI individuales para el formato de contraseña, la antigüedad y la unicidad se\noptimicen por completo.\n El acceso a la información puede restringirse en función de las políticas relacionadas con\nel rol de un Operador; por ejemplo, la información de seguridad solo es accesible para los\noperadores de seguridad, mientras que el personal de ingeniería puede acceder a la\ninformación sobre los controles de la planta.\n La interfaz de operador en el sistema de seguridad presenta una visualización gráfica\nintuitiva, personalizada según los requisitos de cada instalación. El operador podrá\nacceder al manejo del mismo mediante una interface web o mediante un aplicativo cliente\ndel software instalado (según la necesidad de cada operador).\n Los objetos de seguridad como puertas de acceso controlado, puertas monitoreadas,\nsensores de seguridad, cámaras pueden representarse como iconos gráficos en un plano\nvirtual (formatos BMP, WMF, JPEG, GIF, PNG, TIF o PCD). El control manual, basado en\nla autoridad del usuario, es posible. El sistema permite acciones como controlar una puerta\n(bloquear/desbloquear), o iniciar video en vivo y poder ver el estado de las puertas y zonas\nadicionadas al sistema (entradas de alarma).",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-029",
+          "text": "NUEVO HOSPITAL MOTUPE\n“Mejoramiento de los Servicios de Salud del Establecimiento\nde Salud Motupe, Distrito de Motupe, Provincia de",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-030",
+          "text": "Av. Circunvalación del Club Golf Los Incas Nº154, Of. 501, Santiago de Surco Página93\n El sistema podrá monitorear zonas de paneles de alarma compatibles, así como crear\nzonas virtuales en el panel de alarma para poder ser monitoreadas por terceros (Centros\nde Control de empresas de seguridad)\n Se pueden crear varios tipos de reporte como:\no Reporte de entradas/salidas autorizadas y no autorizadas.\no Reporte general de usuarios autorizados.\no Informe de alarmas principals.\no Reportes automáticos de eventos por tiempo.\no Reporte de actividades por puerta.\no Reporte de customizados.\no Reporte de actividades por cardholder.\no Reporte de actividades por usuario.\n Alarmas:\no Las alarmas deben evaluarse y responderse rápidamente. El sistema de\nseguridad presenta una gran cantidad de alarmas de una manera simple y\neficiente para garantizar que no se pase por alto ninguna alarma.\no El sistema debe reportar alarma visual y sonora por acceso a áreas restringidas.\no Alarma de acceso forzado.\no Alarma de acceso inválido.\no Alarma de antipassback.\no Alarma de apertura por acceso forzado de puertas principales en horario de no\noperación.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-031",
+          "text": "06.11.01.06 Instalación y configuración de los equipos\n Corresponde a la instalación de los equipos y su configuración, para su posterior puesta\nen marcha.\n Estas actividades se realizan con el consentimiento de la supervisión, aplicando las\nnormativas, reglamentaciones, y BUENAS PRACTICAS de ingeniería. Los trabajos\ndeben quedar a conformidad total de la supervisión.\n El proveedor debe considerar todos los componentes (equipos, materiales instalaciones)\nnecesarios para implementar el control de activos de alto costo del hospital. Por lo menos\ndebe considerar el control de salida de estos equipos en cada nivel del hospital, cada\npuerta con salida al exterior de cada piso (escaleras y ascensores). Adicionalmente a las\npuertas que dan hacia los halls del primer piso y finalmente las puertas del edificio\nhospitalario.\n Este control debe reporta de forma automática cuando los equipos controlados son\nretirados de sus ambientes rutinarios de trabajo.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        },
+        {
+          "requirementId": "REQ-032",
+          "text": "06.11.02 SALIDAS\n Partidas de 06.11.02.01 a 06.11.02.03, se refiere a las diferentes salidas que se deben\nconsiderar para las instalaciones propuestas del sistema de control de acceso.",
+          "sourceDocumentId": "15bc54b9-8de8-4237-8944-138c6a009c05",
+          "matchedHardwareDocuments": []
+        }
+      ]
+    },
+    "webhookUrl": "https://srv1193798.hstgr.cloud:5678/webhook-test/simplify-analysis",
+    "executionMode": "test"
+  }
+]
