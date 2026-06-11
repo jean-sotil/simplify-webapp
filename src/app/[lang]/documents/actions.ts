@@ -179,7 +179,11 @@ export async function indexUploadedDocument(params: {
 
   try {
     const response = await fetch(blobUrl)
-    if (!response.ok) throw new Error(`Failed to fetch blob: ${response.status}`)
+    if (!response.ok) throw new Error(`Failed to fetch blob: ${response.status} ${response.statusText}`)
+    const contentType = response.headers.get('content-type') ?? ''
+    if (!contentType.includes('pdf')) {
+      throw new Error(`Unexpected content-type from blob: ${contentType}`)
+    }
     const buffer = await response.arrayBuffer()
     extractedText = await extractTextFromPdf(buffer)
   } catch (err) {
@@ -193,7 +197,8 @@ export async function indexUploadedDocument(params: {
     try {
       embedding = await generateEmbedding(extractedText)
     } catch (err) {
-      indexingWarning = `Embedding failed: ${err instanceof Error ? err.message : 'unknown error'}`
+      const errMsg = err instanceof Error ? err.message : typeof err === 'object' && err !== null ? JSON.stringify(err) : 'unknown error'
+      indexingWarning = `Embedding failed: ${errMsg}`
       console.error('[indexUploadedDocument] Embedding error:', err)
     }
   }
