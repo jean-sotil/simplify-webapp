@@ -150,6 +150,120 @@ export async function uploadDocument(formData: FormData) {
   return { data: document, warning: indexingWarning ?? undefined }
 }
 
+// ---------------------------------------------------------------------------
+// indexUploadedDocument — for client-side blob uploads
+// ---------------------------------------------------------------------------
+
+/**
+ * Registers and indexes a document that was already uploaded to Vercel Blob
+ * via client-side upload. This avoids the 4.5 MB serverless body limit.
+ *
+ * Flow: Client uploads file to Blob → gets blobUrl → calls this action.
+ */
+export async function indexUploadedDocument(params: {
+  blobUrl: string
+  filename: string
+  documentType: 'ett' | 'hardware'
+  teamId?: string
+}) {
+  const user = await requireAuth()
+  const { blobUrl, filename, documentType, teamId: _teamId } = params
+
+  if (!blobUrl || !filename || !documentType) {
+    return { error: 'Missing required fields' }
+  }
+
+  // Fetch the PDF from blob to extract text
+  let extractedText = ''
+  let indexingWarning: string | null = null
+
+  try {
+    const response = await fetch(blobUrl)
+    if (!response.ok) throw new Error(`Failed to fetch blob: ${response.status}`)
+    const buffer = await response.arrayBuffer()
+    extractedText = await extractTextFromPdf(buffer)
+  } catch (err) {
+    indexingWarning = err instanceof Error ? err.message : 'PDF text extraction failed'
+    console.error('[indexUploadedDocument] PDF extraction error:', err)
+  }
+
+  // Generate whole-document embedding
+  let embedding: number[] | null = null
+  if (extractedText) {
+    try {
+      embedding = await generateEmbedding(extractedText)
+    } catch (err) {
+      indexingWarning = `Embedding failed: ${err instanceof Error ? err.message : 'unknown error'}`
+      console.error('[indexUploadedDocument] Embedding error:', err)
+    }
+  }
+
+  // Insert document record
+  const supabase = await createSupabaseServerClient()
+  const { data: document, error: dbError } = await supabase
+    .from('documents')
+    .insert({
+      team_id: null,
+      filename,
+      document_type: documentType,
+      original_file_url: blobUrl,
+      extracted_text: extractedText,
+      embedding,
+      uploaded_by: user.id,
+      metadata: {},
+    })
+    .select()
+    .single()
+
+  if (dbError) return { error: dbError.message }
+
+  // Generate chunked embeddings
+  if (extractedText && document) {
+    try {
+      const chunks = chunkPdfText(extractedText)
+      if (chunks.length > 0) {
+        const BATCH_SIZE = 50
+        for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+          const batch = chunks.slice(i, i + BATCH_SIZE)
+          const texts = batch.map((c) => c.text)
+          const embeddings = await generateEmbeddingsBatch(texts)
+
+          const rows = batch.map((chunk, idx) => ({
+            document_id: document.id,
+            chunk_index: chunk.chunkIndex,
+            page_number: chunk.pageNumber,
+            chunk_text: chunk.text,
+            embedding: embeddings[idx],
+          }))
+
+          const { error: chunkError } = await supabaseAdmin
+            .from('document_chunks')
+            .insert(rows)
+
+          if (chunkError) {
+            console.error('[indexUploadedDocument] Chunk insert error:', chunkError)
+            indexingWarning = indexingWarning ?? 'Some chunks failed to index'
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[indexUploadedDocument] Chunking error:', err)
+      indexingWarning = indexingWarning ?? `Chunking failed: ${err instanceof Error ? err.message : 'unknown error'}`
+    }
+  }
+
+  await supabaseAdmin.from('audit_logs').insert({
+    user_id: user.id,
+    team_id: null,
+    action: 'uploaded',
+    resource_type: 'document',
+    resource_id: document.id,
+  })
+
+  revalidatePath('/[lang]/documents', 'page')
+  return { data: document, warning: indexingWarning ?? undefined }
+}
+
 export async function deleteDocument(id: string) {
   const user = await requireAuth()
   const supabase = await createSupabaseServerClient()

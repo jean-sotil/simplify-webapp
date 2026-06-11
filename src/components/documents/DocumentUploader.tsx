@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import { uploadDocument } from '@/app/[lang]/documents/actions'
+import { upload } from '@vercel/blob/client'
+import { indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
   teamId: string
@@ -15,7 +16,7 @@ interface FileEntry {
   message?: string
 }
 
-export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
+export function DocumentUploader({ teamId: _teamId, lang: _lang }: DocumentUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
   const [defaultDocType, setDefaultDocType] = useState<'ett' | 'hardware'>('hardware')
@@ -107,13 +108,19 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
         prev.map((f, idx) => (idx === i ? { ...f, status: 'uploading' } : f))
       )
 
-      const formData = new FormData()
-      formData.set('file', entry.file)
-      formData.set('documentType', entry.documentType)
-      formData.set('teamId', teamId)
-
       try {
-        const result = await uploadDocument(formData)
+        // Step 1: Upload file directly to Vercel Blob (client-side, no size limit)
+        const blob = await upload(entry.file.name, entry.file, {
+          access: 'public',
+          handleUploadUrl: '/api/documents/upload',
+        })
+
+        // Step 2: Call server action to index (extract text, embeddings, chunks)
+        const result = await indexUploadedDocument({
+          blobUrl: blob.url,
+          filename: entry.file.name,
+          documentType: entry.documentType,
+        })
 
         if ('error' in result && result.error) {
           setFiles((prev) =>
