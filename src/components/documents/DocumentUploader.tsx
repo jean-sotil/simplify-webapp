@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
+import { upload } from '@vercel/blob/client'
 import { uploadDocument, indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
@@ -112,45 +113,15 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
     }
 
     // Large file: client upload to Blob, then index via Server Action
-    // 1. Get a client token from our API
-    const tokenRes = await fetch(
-      `/api/documents/upload?filename=${encodeURIComponent(entry.file.name)}`
-    )
-    if (!tokenRes.ok) {
-      const err = await tokenRes.json().catch(() => ({}))
-      return { error: err.error || `Token request failed: ${tokenRes.status}` }
-    }
-    const { clientToken, storeBaseUrl } = await tokenRes.json()
-    if (!clientToken || !storeBaseUrl) {
-      return { error: 'No client token or store URL received' }
-    }
-
-    // 2. PUT directly to Vercel Blob store (bypasses 4.5 MB serverless limit)
-    const putRes = await fetch(`${storeBaseUrl}/${entry.file.name}`, {
-      method: 'PUT',
-      headers: {
-        'authorization': `Bearer ${clientToken}`,
-        'content-type': 'application/pdf',
-        'x-api-version': '7',
-      },
-      body: entry.file,
+    // 1. Upload via SDK's upload() which handles token exchange + CORS internally
+    const blob = await upload(entry.file.name, entry.file, {
+      access: 'public',
+      handleUploadUrl: '/api/documents/upload',
     })
 
-    if (!putRes.ok) {
-      const errText = await putRes.text().catch(() => '')
-      return { error: `Blob upload failed: ${putRes.status} ${errText.slice(0, 100)}` }
-    }
-
-    const blobResult = await putRes.json()
-    const blobUrl = blobResult.url
-
-    if (!blobUrl) {
-      return { error: 'Blob upload succeeded but no URL returned' }
-    }
-
-    // 3. Index the uploaded file (text extraction + embeddings)
+    // 2. Index the uploaded file (text extraction + embeddings)
     const result = await indexUploadedDocument({
-      blobUrl,
+      blobUrl: blob.url,
       filename: entry.file.name,
       documentType: entry.documentType,
     })
