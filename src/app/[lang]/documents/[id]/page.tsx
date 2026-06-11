@@ -59,10 +59,12 @@ export default async function DocumentDetailPage({ params }: Props) {
           className={`text-xs font-medium px-2 py-1 rounded-sm mr-3 ${
             doc.document_type === 'ett'
               ? 'bg-[var(--color-accent-blue)] text-white'
-              : 'bg-[var(--color-accent-orange)] text-white'
+              : doc.document_type === 'software'
+                ? 'bg-emerald-600 text-white'
+                : 'bg-[var(--color-accent-orange)] text-white'
           }`}
         >
-          {doc.document_type.toUpperCase()}
+          {doc.document_type === 'ett' ? 'ETT' : doc.document_type === 'hardware' ? 'Hardware' : 'Software'}
         </span>
         <h1 className="mt-2 text-2xl font-semibold" style={{ color: 'var(--color-ink)' }}>
           {doc.filename}

@@ -71,7 +71,7 @@ export async function semanticSearchDocuments(
   query: string,
   client: SupabaseClient,
   options?: {
-    documentType?: 'ett' | 'hardware'
+    documentType?: 'ett' | 'hardware' | 'software'
     limit?: number
   },
 ): Promise<SemanticSearchResult[]> {

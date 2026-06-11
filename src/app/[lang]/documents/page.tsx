@@ -18,10 +18,11 @@ interface Props {
   params: Promise<{ lang: string }>
 }
 
-const TYPE_LABELS: Record<string, string> = { ett: 'ETT', hardware: 'Hardware' }
+const TYPE_LABELS: Record<string, string> = { ett: 'ETT', hardware: 'Hardware', software: 'Software' }
 const TYPE_COLORS: Record<string, string> = {
   ett: 'bg-[var(--color-accent-blue)] text-white',
   hardware: 'bg-[var(--color-accent-orange)] text-white',
+  software: 'bg-emerald-600 text-white',
 }
 
 export default async function DocumentsPage({ params }: Props) {

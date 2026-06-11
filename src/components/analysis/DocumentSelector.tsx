@@ -17,7 +17,7 @@ interface DocumentSelectorProps {
    * context banner, pre-fills the query with the ETT filename, and scopes
    * search results to hardware documents only.
    *
-   * When absent, the selector operates in freeform search mode — no type
+   * When absent, the selector operates in freeform search mode â€” no type
    * scoping and no analysis trigger.
    */
   ettDocument?: EttDocument
@@ -30,6 +30,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
   const [selected, setSelected] = useState<Map<string, SemanticSearchResult>>(new Map())
   const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'done' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
+  const [docTypeFilter, setDocTypeFilter] = useState<'hardware' | 'software'>('hardware')
 
   async function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -38,10 +39,8 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
     setSearchStatus('searching')
     setErrorMessage('')
 
-    // When operating in analysis mode (ettDocument present), scope search to
-    // hardware documents only — the ETT drives the query and hardware PDFs are
-    // the matching corpus. In freeform mode, search across all document types.
-    const result = await searchDocumentsAction(query, ettDocument ? 'hardware' : undefined)
+    // Scope search to the selected document type filter
+    const result = await searchDocumentsAction(query, ettDocument ? docTypeFilter : undefined)
     if (result.error) {
       setSearchStatus('error')
       setErrorMessage(result.error)
@@ -64,7 +63,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
   }
 
   function handleRunAnalysis() {
-    // SemanticSearchResult does not carry the blob URL — the server action
+    // SemanticSearchResult does not carry the blob URL â€” the server action
     // resolves the real original_file_url from the documents table using the
     // document id before forwarding to n8n. An empty string is the accepted
     // placeholder per SelectedDocumentSchema.
@@ -72,7 +71,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
       id: doc.id,
       filename: doc.filename,
       url: '',
-      documentType: 'hardware' as const,
+      documentType: docTypeFilter,
       relatedRequirements: [],
     }))
 
@@ -97,7 +96,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
 
   return (
     <div>
-      {/* ETT context banner — only shown in analysis mode */}
+      {/* ETT context banner â€” only shown in analysis mode */}
       {ettDocument && (
         <div
           className="mb-6 rounded-md px-4 py-3 text-sm"
@@ -112,26 +111,63 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
 
       {/* Search form */}
       <form onSubmit={handleSearch} className="mb-6">
+        {/* Document type filter â€” only in analysis mode */}
+        {ettDocument && (
+          <div className="mb-4">
+            <label
+              className="block text-xs font-medium uppercase tracking-[1.5px] mb-2"
+              style={{ color: 'var(--color-mute)' }}
+            >
+              Document type to compare
+            </label>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setDocTypeFilter('hardware')}
+                className={`px-4 py-2 text-sm rounded-sm border font-medium transition-colors ${
+                  docTypeFilter === 'hardware'
+                    ? 'bg-[var(--color-accent-orange)] text-white border-transparent'
+                    : 'border-[var(--color-hairline)] hover:opacity-70'
+                }`}
+                style={docTypeFilter !== 'hardware' ? { color: 'var(--color-ink)' } : undefined}
+              >
+                Hardware
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocTypeFilter('software')}
+                className={`px-4 py-2 text-sm rounded-sm border font-medium transition-colors ${
+                  docTypeFilter === 'software'
+                    ? 'bg-emerald-600 text-white border-transparent'
+                    : 'border-[var(--color-hairline)] hover:opacity-70'
+                }`}
+                style={docTypeFilter !== 'software' ? { color: 'var(--color-ink)' } : undefined}
+              >
+                Software
+              </button>
+            </div>
+          </div>
+        )}
         <label
           htmlFor="filter-docs"
           className="block text-xs font-medium uppercase tracking-[1.5px] mb-2"
           style={{ color: 'var(--color-mute)' }}
         >
-          {ettDocument ? 'Search hardware documents' : 'Search query'}
+          {ettDocument ? `Search ${docTypeFilter} documents` : 'Search query'}
         </label>
         <input
           id="filter-docs"
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder={ettDocument ? 'Search by requirement or keyword…' : "Describe what you're looking for…"}
+          placeholder={ettDocument ? 'Search by requirement or keywordâ€¦' : "Describe what you're looking forâ€¦"}
           className="w-full border rounded-sm px-4 py-2 text-sm focus:outline-none mb-3"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         />
         <p id="search-hint" className="text-xs mb-3" style={{ color: 'var(--color-mute)' }}>
           {ettDocument
-            ? 'Results are hardware inventory PDFs ranked by similarity to your query. The ETT document above is always included in the analysis.'
-            : "Describe what you’re looking for. Results are ranked by semantic similarity."}
+            ? `Results are ${docTypeFilter} inventory PDFs ranked by similarity to your query. The ETT document above is always included in the analysis.`
+            : "Describe what you're looking for. Results are ranked by semantic similarity."}
         </p>
         <button
           type="submit"
@@ -141,7 +177,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
           aria-busy={searchStatus === 'searching'}
         >
           {searchStatus === 'searching'
-            ? 'Searching…'
+            ? 'Searchingâ€¦'
             : ettDocument
               ? 'Search hardware documents'
               : 'Search documents'}

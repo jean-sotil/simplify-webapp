@@ -6,7 +6,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 
 export async function searchDocumentsAction(
   query: string,
-  documentType?: 'ett' | 'hardware'
+  documentType?: 'ett' | 'hardware' | 'software'
 ): Promise<{ data?: SemanticSearchResult[]; error?: string }> {
   const user = await getUser()
   if (!user) return { error: 'Unauthorized' }
