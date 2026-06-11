@@ -38,7 +38,11 @@ export async function GET(request: NextRequest) {
       validUntil: Date.now() + 5 * 60 * 1000, // 5 minutes
     })
 
-    return NextResponse.json({ clientToken })
+    // Return the token AND the store base URL so the client knows where to PUT
+    const storeId = token.replace('vercel_blob_rw_', '').split('_')[0]
+    const storeBaseUrl = `https://${storeId}.public.blob.vercel-storage.com`
+
+    return NextResponse.json({ clientToken, storeBaseUrl })
   } catch (error) {
     console.error('[/api/documents/upload] Token generation failed:', error)
     return NextResponse.json(
