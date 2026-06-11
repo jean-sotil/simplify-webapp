@@ -1,6 +1,8 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
+import { upload } from '@vercel/blob/client'
+import { indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
 interface DocumentUploaderProps {
   teamId: string
@@ -107,17 +109,18 @@ export function DocumentUploader({ teamId: _teamId, lang: _lang }: DocumentUploa
       )
 
       try {
-        // Upload via Route Handler (no 4.5 MB body limit like Server Actions)
-        const formData = new FormData()
-        formData.set('file', entry.file)
-        formData.set('documentType', entry.documentType)
-
-        const response = await fetch('/api/documents/upload', {
-          method: 'POST',
-          body: formData,
+        // Step 1: Upload file directly to Vercel Blob (client → Blob, bypasses 4.5MB limit)
+        const blob = await upload(entry.file.name, entry.file, {
+          access: 'public',
+          handleUploadUrl: '/api/documents/upload',
         })
 
-        const result = await response.json()
+        // Step 2: Server action indexes the uploaded file (text extraction + embeddings)
+        const result = await indexUploadedDocument({
+          blobUrl: blob.url,
+          filename: entry.file.name,
+          documentType: entry.documentType,
+        })
 
         if ('error' in result && result.error) {
           setFiles((prev) =>
