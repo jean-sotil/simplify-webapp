@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/db.server'
 import { revalidatePath } from 'next/cache'
+import { generateAnalysisResults } from '@/lib/analysis/generate-results'
 
 export const maxDuration = 300
 
@@ -12,6 +13,8 @@ interface DocumentInput {
   matchedRequirements: Array<{
     requirementId: string
     text: string
+    pageNumber?: number | null
+    similarityScore?: number
   }>
 }
 
@@ -58,18 +61,30 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No documents provided' }, { status: 400 })
   }
 
+  // Helper to update processing stage in DB
+  async function updateStage(stage: string) {
+    if (!analysisId) return
+    console.log(`[analyze] [${analysisId.substring(0, 8)}] Stage: ${stage}`)
+    await supabaseAdmin.from('analysis_results').update({
+      analysis_metadata: { stage, updatedAt: new Date().toISOString() },
+    }).eq('id', analysisId)
+  }
+
   // Mock mode: return fake results without calling LLM or downloading PDFs
   const useMock = process.env.MOCK_ANALYSIS === 'true' || body.mock === true
   if (useMock) {
-    console.log('[analyze-documents] MOCK MODE: returning fake results')
+    console.log(`[analyze] [${analysisId?.substring(0, 8) ?? 'no-id'}] MOCK MODE enabled`)
+    await updateStage('Generating mock results...')
+
     const mockResults: ProcessedDocument[] = documents.map(doc => ({
       documentId: doc.documentId,
       filename: doc.filename,
       documentType: doc.documentType,
+      originalFileUrl: doc.originalFileUrl,
       annotations: (doc.matchedRequirements || []).map(req => ({
         requirementId: req.requirementId,
         found: true,
-        pageNum: 1,
+        pageNum: req.pageNumber ?? Math.ceil(Math.random() * 5),
         exactText: `[MOCK] Evidence found for: ${req.text.substring(0, 60)}...`,
         confidence: 0.85,
       })),
@@ -84,8 +99,33 @@ export async function POST(request: NextRequest) {
     }
 
     if (analysisId) {
+      // Generate ZIP with Excel results even in mock mode
+      await updateStage('Generating compliance matrix (Excel)...')
+      let zipFileUrl: string | null = null
+      try {
+        let projectName = 'Analysis'
+        if (projectId) {
+          const { data: project } = await supabaseAdmin
+            .from('projects').select('name').eq('id', projectId).single()
+          if (project) projectName = project.name
+        }
+
+        await updateStage('Creating ZIP package...')
+        zipFileUrl = await generateAnalysisResults({
+          processedDocs: mockResults,
+          analysisId,
+          projectName,
+          blobToken: process.env.BLOB_READ_WRITE_TOKEN,
+        })
+        console.log(`[analyze] [${analysisId.substring(0, 8)}] ZIP uploaded: ${zipFileUrl}`)
+        await updateStage('Saving results...')
+      } catch (err) {
+        console.error(`[analyze] [${analysisId.substring(0, 8)}] ZIP generation failed:`, err)
+      }
+
       await supabaseAdmin.from('analysis_results').update({
         status: 'completed',
+        zip_file_url: zipFileUrl,
         analysis_metadata: {
           documentCount: responseData.totalDocuments,
           totalAnnotations: responseData.totalAnnotations,
@@ -104,10 +144,15 @@ export async function POST(request: NextRequest) {
   }
 
   const results: ProcessedDocument[] = []
+  const totalDocs = documents.length
 
-  for (const doc of documents) {
+  for (let docIdx = 0; docIdx < documents.length; docIdx++) {
+    const doc = documents[docIdx]
+    const docLabel = `[${docIdx + 1}/${totalDocs}] ${doc.filename}`
+
     // Skip docs with no matched requirements
     if (!doc.matchedRequirements || doc.matchedRequirements.length === 0) {
+      console.log(`[analyze] ${docLabel} — no requirements, skipping`)
       results.push({
         documentId: doc.documentId,
         filename: doc.filename,
@@ -117,6 +162,9 @@ export async function POST(request: NextRequest) {
       })
       continue
     }
+
+    await updateStage(`Extracting text from ${doc.filename} (${docIdx + 1}/${totalDocs})...`)
+    console.log(`[analyze] ${docLabel} — extracting text (${doc.matchedRequirements.length} requirements)`)
 
     // Step 1: Extract text from PDF
     let pages: Array<{ pageNum: number; text: string }> = []
@@ -156,6 +204,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 2: Call LLM to identify evidence
+    await updateStage(`Analyzing ${doc.filename} with LLM (${docIdx + 1}/${totalDocs})...`)
+    console.log(`[analyze] ${docLabel} — calling LLM (${pages.length} pages, ${doc.matchedRequirements.length} reqs)`)
     const pageTexts = pages.map(p => `--- PAGE ${p.pageNum} ---\n${p.text}`).join('\n\n')
     const reqList = doc.matchedRequirements.map(r => `${r.requirementId}: ${r.text}`).join('\n')
 
@@ -209,15 +259,17 @@ Respond in JSON ONLY:
       }
 
       const annotations = parsed.annotations || []
+      const foundCount = annotations.filter(a => a.found).length
+      console.log(`[analyze] ${docLabel} — LLM done: ${foundCount}/${annotations.length} requirements found`)
       results.push({
         documentId: doc.documentId,
         filename: doc.filename,
         documentType: doc.documentType,
         annotations,
-        annotationCount: annotations.filter(a => a.found).length,
+        annotationCount: foundCount,
       })
     } catch (err) {
-      console.error(`[analyze-documents] LLM call failed for ${doc.filename}:`, err)
+      console.error(`[analyze] ${docLabel} — LLM FAILED:`, err instanceof Error ? err.message : err)
       results.push({
         documentId: doc.documentId,
         filename: doc.filename,
@@ -241,11 +293,41 @@ Respond in JSON ONLY:
     generatedAt: new Date().toISOString(),
   }
 
+  // Generate deliverables (Excel + annotated PDFs + ZIP) and upload
+  console.log(`[analyze] All documents processed. Generating deliverables...`)
+  await updateStage('Generating compliance matrix (Excel) and ZIP...')
+  let zipFileUrl: string | null = null
+  if (analysisId && results.some(d => d.annotationCount > 0)) {
+    try {
+      // Get project name for the filename
+      let projectName = 'Analysis'
+      if (projectId) {
+        const { data: project } = await supabaseAdmin
+          .from('projects')
+          .select('name')
+          .eq('id', projectId)
+          .single()
+        if (project) projectName = project.name
+      }
+
+      zipFileUrl = await generateAnalysisResults({
+        processedDocs: results,
+        analysisId,
+        projectName,
+        blobToken: blobToken || process.env.BLOB_READ_WRITE_TOKEN,
+      })
+      console.log('[analyze-documents] ZIP generated:', zipFileUrl)
+    } catch (err) {
+      console.error('[analyze-documents] Failed to generate results ZIP:', err)
+    }
+  }
+
   // If analysisId is provided, update the analysis_results row directly
   if (analysisId) {
     try {
       await supabaseAdmin.from('analysis_results').update({
         status: 'completed',
+        zip_file_url: zipFileUrl,
         analysis_metadata: {
           documentCount: responseData.totalDocuments,
           totalAnnotations: responseData.totalAnnotations,

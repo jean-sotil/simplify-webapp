@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { triggerAnalysis } from '@/app/[lang]/projects/[id]/analysis/actions'
 import { DocumentSelector, type EttDocument } from '@/components/analysis/DocumentSelector'
 import type { SelectedDocument } from '@/lib/validation/schemas'
@@ -15,6 +16,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [triggered, setTriggered] = useState(false)
   const [useMock, setUseMock] = useState(false)
+  const router = useRouter()
 
   function handleRunAnalysis(selectedDocuments: SelectedDocument[]) {
     setTriggerError(null)
@@ -28,15 +30,31 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
         setTriggerError(message)
       } else {
         setTriggered(true)
+        // Refresh page so AnalysisResults picks up the "processing" status
+        router.refresh()
       }
     })
   }
 
   if (triggered) {
     return (
-      <p className="text-sm" style={{ color: 'var(--color-body)' }}>
-        Analysis triggered{useMock ? ' (mock)' : ''}. Results will appear on the left once complete.
-      </p>
+      <div
+        className="border rounded-md p-6 text-center"
+        style={{ borderColor: 'var(--color-hairline)' }}
+      >
+        <div className="flex items-center justify-center gap-3 mb-2">
+          <span
+            className="inline-block w-4 h-4 border-2 rounded-full animate-spin"
+            style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'var(--color-primary)' }}
+          />
+          <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
+            Analysis started. Processing documents...
+          </p>
+        </div>
+        <p className="text-xs" style={{ color: 'var(--color-mute)' }}>
+          Results will appear on the left panel. The page refreshes automatically.
+        </p>
+      </div>
     )
   }
 

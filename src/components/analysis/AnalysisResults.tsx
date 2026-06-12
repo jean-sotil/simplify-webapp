@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 export interface AnalysisResultData {
   id: string
@@ -8,7 +9,9 @@ export interface AnalysisResultData {
   zip_file_url?: string | null
   analysis_metadata?: {
     document_count?: number
+    documentCount?: number
     total_pages?: number
+    totalAnnotations?: number
   } | null
   completed_at?: string | null
   error_message?: string | null
@@ -21,15 +24,24 @@ interface AnalysisResultsProps {
 
 export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const router = useRouter()
+
+  const refresh = useCallback(() => {
+    if (onRefresh) {
+      onRefresh()
+    } else {
+      router.refresh()
+    }
+  }, [onRefresh, router])
 
   useEffect(() => {
     if (result?.status === 'processing' || result?.status === 'pending') {
-      timerRef.current = setTimeout(() => onRefresh?.(), 5_000)
+      timerRef.current = setTimeout(() => refresh(), 5_000)
     }
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
-  }, [result?.status, onRefresh])
+  }, [result?.status, refresh])
 
   if (!result) {
     return (
@@ -42,6 +54,7 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
   }
 
   if (result.status === 'pending' || result.status === 'processing') {
+    const stage = (result.analysis_metadata as { stage?: string } | null)?.stage
     return (
       <div
         className="border rounded-md p-8"
@@ -60,15 +73,11 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
             Analysis in progress…
           </p>
         </div>
-        <div className="flex gap-1" aria-hidden="true">
-          {[0, 1, 2].map(i => (
-            <span
-              key={i}
-              className="w-2 h-2 rounded-full animate-pulse"
-              style={{ backgroundColor: 'var(--color-hairline)', animationDelay: `${i * 200}ms` }}
-            />
-          ))}
-        </div>
+        {stage && (
+          <p className="text-xs ml-7" style={{ color: 'var(--color-mute)' }}>
+            {stage}
+          </p>
+        )}
         <p className="mt-3 text-xs" style={{ color: 'var(--color-mute)' }}>
           This page refreshes automatically every 5 seconds.
         </p>
@@ -94,8 +103,8 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
   }
 
   // Completed
-  const docCount = result.analysis_metadata?.document_count
-  const pageCount = result.analysis_metadata?.total_pages
+  const docCount = result.analysis_metadata?.documentCount ?? result.analysis_metadata?.document_count
+  const annotationCount = result.analysis_metadata?.totalAnnotations ?? result.analysis_metadata?.total_pages
   const completedAt = result.completed_at ? new Date(result.completed_at).toLocaleString() : null
 
   return (
@@ -109,7 +118,7 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
         )}
       </div>
 
-      {(docCount !== undefined || pageCount !== undefined) && (
+      {(docCount !== undefined || annotationCount !== undefined) && (
         <dl className="flex gap-6 mb-4">
           {docCount !== undefined && (
             <div>
@@ -117,10 +126,10 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
               <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{docCount}</dd>
             </div>
           )}
-          {pageCount !== undefined && (
+          {annotationCount !== undefined && (
             <div>
-              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>Pages annotated</dt>
-              <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{pageCount}</dd>
+              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>Annotations found</dt>
+              <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{annotationCount}</dd>
             </div>
           )}
         </dl>
@@ -128,12 +137,12 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
 
       {result.zip_file_url && (
         <a
-          href={result.zip_file_url}
+          href={`/api/download?url=${encodeURIComponent(result.zip_file_url)}`}
           download
           className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          Download annotated PDFs (ZIP)
+          Download results (ZIP)
         </a>
       )}
     </div>

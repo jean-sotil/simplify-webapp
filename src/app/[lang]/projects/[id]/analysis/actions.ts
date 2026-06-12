@@ -219,14 +219,21 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
             documentType: doc.documentType,
             matchedRequirements: requirementsWithUrls
               .filter(req => req.matchedHardwareDocuments.some(m => m.documentId === doc.id))
-              .map(req => ({ requirementId: req.requirementId, text: req.text })),
+              .map(req => {
+                const match = req.matchedHardwareDocuments.find(m => m.documentId === doc.id)
+                return {
+                  requirementId: req.requirementId,
+                  text: req.text,
+                  pageNumber: match?.pageNumber ?? null,
+                  similarityScore: match?.similarityScore ?? 0,
+                }
+              }),
           }))
       : []
 
-    // Fire-and-forget: call analyze-documents in background
-    // In development, we don't await to avoid blocking the UI response,
-    // but the fetch still runs in the Node.js process.
-    const analyzePromise = fetch(`${appUrl}/api/analyze-documents`, {
+    // Fire-and-forget: start analysis in background, don't block UI
+    // The AnalysisResults component polls every 5s to show progress
+    fetch(`${appUrl}/api/analyze-documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -238,11 +245,6 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
     }).catch((err) => {
       console.error('[triggerAnalysis] Background analysis call failed:', err)
     })
-
-    // Don't await in production (fire-and-forget), but do await in dev for reliability
-    if (process.env.NODE_ENV === 'development') {
-      await analyzePromise
-    }
   } catch (err) {
     await supabaseAdmin
       .from('analysis_results')
