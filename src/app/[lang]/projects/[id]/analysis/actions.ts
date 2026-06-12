@@ -5,7 +5,6 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { supabaseAdmin } from '@/lib/db.server'
 import { getUser } from '@/lib/auth'
 import { SelectedDocumentSchema, type TracedRequirement, type MatchedHardwareDocument } from '@/lib/validation/schemas'
-import { triggerN8nWorkflow } from '@/lib/n8n/client'
 import { generateEmbeddingsBatch } from '@/lib/ai/openai'
 import { extractRequirementsFromETT } from '@/lib/analysis/requirement-extraction'
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -203,22 +202,38 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   await supabase.from('projects').update({ metadata: { analysis_results_id: analysis.id } }).eq('id', projectId)
 
-  // Trigger n8n
+  // Trigger document analysis in the background (fire-and-forget)
+  // The /api/analyze-documents endpoint processes all docs, calls LLM,
+  // and updates analysis_results when done.
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-    await triggerN8nWorkflow({
-      projectId,
-      projectName: project.name,
-      analysisId: analysis.id,
-      selectedDocuments: enrichedDocuments.map((d) => ({
-        id: d.id,
-        filename: d.filename,
-        originalFileUrl: d.url,
-        documentType: d.documentType,
-      })),
-      webhookUrl: `${appUrl}/api/webhooks/n8n`,
-      requirements: requirementsWithUrls,
+    // Build documents array with their matched requirements
+    const documents = requirementsWithUrls.length > 0
+      ? enrichedDocuments
+          .filter(d => d.documentType === 'hardware' || d.documentType === 'software')
+          .map(doc => ({
+            documentId: doc.id,
+            filename: doc.filename,
+            originalFileUrl: doc.url,
+            documentType: doc.documentType,
+            matchedRequirements: requirementsWithUrls
+              .filter(req => req.matchedHardwareDocuments.some(m => m.documentId === doc.id))
+              .map(req => ({ requirementId: req.requirementId, text: req.text })),
+          }))
+      : []
+
+    // Fire-and-forget: don't await the full analysis
+    fetch(`${appUrl}/api/analyze-documents`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        documents,
+        analysisId: analysis.id,
+        projectId,
+      }),
+    }).catch((err) => {
+      console.error('[triggerAnalysis] Background analysis call failed:', err)
     })
   } catch (err) {
     await supabaseAdmin

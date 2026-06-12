@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { supabaseAdmin } from '@/lib/db.server'
+import { revalidatePath } from 'next/cache'
 
 export const maxDuration = 300
 
@@ -44,10 +46,12 @@ interface ProcessedDocument {
  */
 export async function POST(request: NextRequest) {
   const body = await request.json()
-  const { documents, blobToken, openrouterKey } = body as {
+  const { documents, blobToken, openrouterKey, analysisId, projectId } = body as {
     documents: DocumentInput[]
-    blobToken: string
-    openrouterKey: string
+    blobToken?: string
+    openrouterKey?: string
+    analysisId?: string
+    projectId?: string
   }
 
   if (!documents?.length) {
@@ -185,10 +189,38 @@ Respond in JSON ONLY:
     }
   }
 
-  return NextResponse.json({
+  const responseData = {
     processedDocs: results,
     totalDocuments: results.length,
     totalAnnotations: results.reduce((sum, d) => sum + d.annotationCount, 0),
     generatedAt: new Date().toISOString(),
-  })
+  }
+
+  // If analysisId is provided, update the analysis_results row directly
+  if (analysisId) {
+    try {
+      await supabaseAdmin.from('analysis_results').update({
+        status: 'completed',
+        analysis_metadata: {
+          documentCount: responseData.totalDocuments,
+          totalAnnotations: responseData.totalAnnotations,
+          processedDocuments: responseData.processedDocs,
+          generatedAt: responseData.generatedAt,
+        },
+        completed_at: new Date().toISOString(),
+      }).eq('id', analysisId)
+
+      if (projectId) {
+        revalidatePath(`/[lang]/projects/${projectId}`, 'page')
+      }
+    } catch (err) {
+      console.error('[analyze-documents] Failed to update analysis_results:', err)
+      await supabaseAdmin.from('analysis_results').update({
+        status: 'failed',
+        error_message: err instanceof Error ? err.message : 'Failed to save results',
+      }).eq('id', analysisId)
+    }
+  }
+
+  return NextResponse.json(responseData)
 }
