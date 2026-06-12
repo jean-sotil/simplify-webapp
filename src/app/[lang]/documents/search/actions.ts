@@ -1,23 +1,145 @@
 'use server'
 
-import { semanticSearchDocuments, type SemanticSearchResult } from '@/lib/search/semantic'
 import { getUser } from '@/lib/auth'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { supabaseAdmin } from '@/lib/db.server'
+import { generateEmbedding } from '@/lib/ai/openai'
 
-export async function searchDocumentsAction(
+export interface ChunkSearchResult {
+  chunkId: string
+  documentId: string
+  filename: string
+  documentType: string
+  pageNumber: number | null
+  chunkText: string
+  similarity: number
+}
+
+/**
+ * Searches document chunks by semantic similarity.
+ * Optionally scopes to specific document IDs.
+ */
+export async function searchChunksAction(
   query: string,
-  documentType?: 'ett' | 'hardware' | 'software'
-): Promise<{ data?: SemanticSearchResult[]; error?: string }> {
+  options?: {
+    documentIds?: string[]
+    documentType?: 'ett' | 'hardware' | 'software'
+    limit?: number
+  }
+): Promise<{ data?: ChunkSearchResult[]; error?: string }> {
   const user = await getUser()
   if (!user) return { error: 'Unauthorized' }
 
-  const supabase = await createSupabaseServerClient()
+  if (!query.trim()) return { error: 'Query is required' }
 
   try {
-    const results = await semanticSearchDocuments(query, supabase, {
-      documentType,
-      limit: 10,
+    // Generate embedding for the query
+    const queryEmbedding = await generateEmbedding(query)
+
+    const limit = options?.limit ?? 10
+    const threshold = 0.25
+
+    // If document IDs are provided, search only in those documents
+    if (options?.documentIds && options.documentIds.length > 0) {
+      const { data, error } = await supabaseAdmin.rpc('search_chunks_by_embedding', {
+        query_embedding: queryEmbedding,
+        doc_ids: options.documentIds,
+        match_count: limit,
+        similarity_threshold: threshold,
+      })
+
+      if (error) return { error: error.message }
+
+      // Enrich with document info
+      const docIds = [...new Set((data || []).map((r: { document_id: string }) => r.document_id))]
+      const { data: docs } = await supabaseAdmin
+        .from('documents')
+        .select('id, filename, document_type')
+        .in('id', docIds)
+
+      const docMap = new Map((docs || []).map(d => [d.id, d]))
+
+      const results: ChunkSearchResult[] = (data || []).map((row: {
+        chunk_id: string
+        document_id: string
+        page_number: number | null
+        chunk_text: string
+        similarity: number
+      }) => {
+        const doc = docMap.get(row.document_id)
+        return {
+          chunkId: row.chunk_id,
+          documentId: row.document_id,
+          filename: doc?.filename ?? 'Unknown',
+          documentType: doc?.document_type ?? 'hardware',
+          pageNumber: row.page_number,
+          chunkText: row.chunk_text,
+          similarity: row.similarity,
+        }
+      })
+
+      return { data: results }
+    }
+
+    // Search across all user's documents (with optional type filter)
+    // Use a broader search across all chunks
+    let docFilter: string[] = []
+    if (options?.documentType) {
+      const { data: filteredDocs } = await supabaseAdmin
+        .from('documents')
+        .select('id')
+        .eq('uploaded_by', user.id)
+        .eq('document_type', options.documentType)
+
+      docFilter = (filteredDocs || []).map(d => d.id)
+    } else {
+      const { data: allDocs } = await supabaseAdmin
+        .from('documents')
+        .select('id')
+        .eq('uploaded_by', user.id)
+        .neq('document_type', 'ett')
+
+      docFilter = (allDocs || []).map(d => d.id)
+    }
+
+    if (docFilter.length === 0) return { data: [] }
+
+    const { data, error } = await supabaseAdmin.rpc('search_chunks_by_embedding', {
+      query_embedding: queryEmbedding,
+      doc_ids: docFilter,
+      match_count: limit,
+      similarity_threshold: threshold,
     })
+
+    if (error) return { error: error.message }
+
+    // Enrich with document info
+    const docIds = [...new Set((data || []).map((r: { document_id: string }) => r.document_id))]
+    const { data: docs } = await supabaseAdmin
+      .from('documents')
+      .select('id, filename, document_type')
+      .in('id', docIds)
+
+    const docMap = new Map((docs || []).map(d => [d.id, d]))
+
+    const results: ChunkSearchResult[] = (data || []).map((row: {
+      chunk_id: string
+      document_id: string
+      page_number: number | null
+      chunk_text: string
+      similarity: number
+    }) => {
+      const doc = docMap.get(row.document_id)
+      return {
+        chunkId: row.chunk_id,
+        documentId: row.document_id,
+        filename: doc?.filename ?? 'Unknown',
+        documentType: doc?.document_type ?? 'hardware',
+        pageNumber: row.page_number,
+        chunkText: row.chunk_text,
+        similarity: row.similarity,
+      }
+    })
+
     return { data: results }
   } catch (err) {
     return { error: err instanceof Error ? err.message : 'Search failed' }

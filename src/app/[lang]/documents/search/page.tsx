@@ -1,19 +1,15 @@
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { DocumentSelector } from '@/components/analysis/DocumentSelector'
+import { SemanticSearch } from '@/components/documents/SemanticSearch'
 
 interface Props {
   params: Promise<{ lang: string }>
-  searchParams: Promise<{ type?: string }>
 }
 
-export default async function DocumentSearchPage({ params, searchParams }: Props) {
+export default async function DocumentSearchPage({ params }: Props) {
   const { lang } = await params
-  const { type } = await searchParams
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
-
-  const docType = type === 'ett' || type === 'hardware' ? type : undefined
 
   return (
     <main id="main-content" className="max-w-3xl mx-auto px-4 py-8">
@@ -22,19 +18,17 @@ export default async function DocumentSearchPage({ params, searchParams }: Props
           className="text-xs font-medium uppercase tracking-[1.5px] mb-1"
           style={{ color: 'var(--color-mute)', letterSpacing: '1.5px' }}
         >
-          Search
+          Documents
         </p>
         <h1 className="text-3xl font-semibold" style={{ color: 'var(--color-ink)' }}>
-          Semantic Document Search
+          Semantic Search
         </h1>
-        {docType && (
-          <p className="mt-2 text-sm" style={{ color: 'var(--color-body)' }}>
-            Filtering by: <strong>{docType.toUpperCase()}</strong> documents
-          </p>
-        )}
+        <p className="mt-2 text-sm" style={{ color: 'var(--color-body)' }}>
+          Search across all your documents by meaning. Ask a question or describe what you need.
+        </p>
       </div>
 
-      <DocumentSelector />
+      <SemanticSearch />
     </main>
   )
 }
