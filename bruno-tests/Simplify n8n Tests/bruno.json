@@ -1,0 +1,10 @@
+{
+  "version": "1",
+  "name": "Simplify n8n Tests",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git",
+    ".env"
+  ]
+}
