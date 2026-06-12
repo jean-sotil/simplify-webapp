@@ -1,12 +1,16 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 const supabase = createSupabaseBrowserClient()
 
 export default function SignInPage() {
+  const router = useRouter()
   const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
 
@@ -15,16 +19,27 @@ export default function SignInPage() {
     setStatus('loading')
     setErrorMessage('')
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    })
-
-    if (error) {
-      setStatus('error')
-      setErrorMessage(error.message)
+    if (mode === 'signin') {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) {
+        setStatus('error')
+        setErrorMessage(error.message)
+      } else {
+        router.push('/en/projects')
+        router.refresh()
+      }
     } else {
-      setStatus('success')
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { emailRedirectTo: `${window.location.origin}/api/auth/callback` },
+      })
+      if (error) {
+        setStatus('error')
+        setErrorMessage(error.message)
+      } else {
+        setStatus('success')
+      }
     }
   }
 
@@ -52,14 +67,11 @@ export default function SignInPage() {
             className="text-3xl font-semibold"
             style={{ color: 'var(--color-ink)' }}
           >
-            Sign in
+            {mode === 'signin' ? 'Sign in' : 'Create account'}
           </h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--color-body)' }}>
-            Enter your email address and we&apos;ll send you a magic link.
-          </p>
         </div>
 
-        {status === 'success' ? (
+        {status === 'success' && mode === 'signup' ? (
           <div
             role="status"
             aria-live="polite"
@@ -67,10 +79,9 @@ export default function SignInPage() {
             style={{
               borderColor: 'var(--color-accent-green)',
               color: 'var(--color-ink)',
-              backgroundColor: 'var(--color-canvas)',
             }}
           >
-            Check your email for a magic link.
+            Account created. Check your email to confirm, then sign in.
           </div>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
@@ -80,56 +91,96 @@ export default function SignInPage() {
                 className="block text-sm font-medium mb-1"
                 style={{ color: 'var(--color-ink)' }}
               >
-                Email address
+                Email
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                aria-describedby={status === 'error' ? 'email-error' : undefined}
                 required
                 autoComplete="email"
                 placeholder="you@example.com"
-                className="w-full rounded-sm px-4 py-3 text-sm focus:outline-none"
-                style={{
-                  border: '1px solid var(--color-hairline)',
-                  color: 'var(--color-ink)',
-                  backgroundColor: 'var(--color-canvas)',
-                  boxShadow: 'none',
-                }}
-                onFocus={e => {
-                  e.currentTarget.style.borderColor = 'var(--color-primary)'
-                }}
-                onBlur={e => {
-                  e.currentTarget.style.borderColor = 'var(--color-hairline)'
-                }}
+                className="w-full rounded-sm px-4 py-3 text-sm border focus:outline-none"
+                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
               />
-              {status === 'error' && (
-                <p
-                  id="email-error"
-                  role="alert"
-                  aria-live="assertive"
-                  className="mt-1 text-xs"
-                  style={{ color: 'var(--color-accent-red)' }}
-                >
-                  {errorMessage}
-                </p>
-              )}
             </div>
+
+            <div className="mb-4">
+              <label
+                htmlFor="password"
+                className="block text-sm font-medium mb-1"
+                style={{ color: 'var(--color-ink)' }}
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
+                autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+                placeholder={mode === 'signup' ? 'Min 6 characters' : ''}
+                minLength={6}
+                className="w-full rounded-sm px-4 py-3 text-sm border focus:outline-none"
+                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+              />
+            </div>
+
+            {status === 'error' && (
+              <p
+                role="alert"
+                aria-live="assertive"
+                className="mb-4 text-xs"
+                style={{ color: 'var(--color-accent-red)' }}
+              >
+                {errorMessage}
+              </p>
+            )}
 
             <button
               type="submit"
               disabled={status === 'loading'}
-              className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50 mb-4"
               style={{
                 backgroundColor: 'var(--color-primary)',
                 color: 'var(--color-on-primary)',
               }}
               aria-busy={status === 'loading'}
             >
-              {status === 'loading' ? 'Sending…' : 'Send magic link'}
+              {status === 'loading'
+                ? (mode === 'signin' ? 'Signing in...' : 'Creating account...')
+                : (mode === 'signin' ? 'Sign in' : 'Create account')}
             </button>
+
+            <p className="text-center text-sm" style={{ color: 'var(--color-mute)' }}>
+              {mode === 'signin' ? (
+                <>
+                  No account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signup'); setStatus('idle'); setErrorMessage('') }}
+                    className="underline hover:opacity-70"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    Create one
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already have an account?{' '}
+                  <button
+                    type="button"
+                    onClick={() => { setMode('signin'); setStatus('idle'); setErrorMessage('') }}
+                    className="underline hover:opacity-70"
+                    style={{ color: 'var(--color-primary)' }}
+                  >
+                    Sign in
+                  </button>
+                </>
+              )}
+            </p>
           </form>
         )}
       </div>

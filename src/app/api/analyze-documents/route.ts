@@ -58,6 +58,51 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No documents provided' }, { status: 400 })
   }
 
+  // Mock mode: return fake results without calling LLM or downloading PDFs
+  const useMock = process.env.MOCK_ANALYSIS === 'true' || body.mock === true
+  if (useMock) {
+    console.log('[analyze-documents] MOCK MODE: returning fake results')
+    const mockResults: ProcessedDocument[] = documents.map(doc => ({
+      documentId: doc.documentId,
+      filename: doc.filename,
+      documentType: doc.documentType,
+      annotations: (doc.matchedRequirements || []).map(req => ({
+        requirementId: req.requirementId,
+        found: true,
+        pageNum: 1,
+        exactText: `[MOCK] Evidence found for: ${req.text.substring(0, 60)}...`,
+        confidence: 0.85,
+      })),
+      annotationCount: (doc.matchedRequirements || []).length,
+    }))
+
+    const responseData = {
+      processedDocs: mockResults,
+      totalDocuments: mockResults.length,
+      totalAnnotations: mockResults.reduce((sum, d) => sum + d.annotationCount, 0),
+      generatedAt: new Date().toISOString(),
+    }
+
+    if (analysisId) {
+      await supabaseAdmin.from('analysis_results').update({
+        status: 'completed',
+        analysis_metadata: {
+          documentCount: responseData.totalDocuments,
+          totalAnnotations: responseData.totalAnnotations,
+          processedDocuments: responseData.processedDocs,
+          generatedAt: responseData.generatedAt,
+        },
+        completed_at: new Date().toISOString(),
+      }).eq('id', analysisId)
+
+      if (projectId) {
+        revalidatePath(`/[lang]/projects/${projectId}`, 'page')
+      }
+    }
+
+    return NextResponse.json(responseData)
+  }
+
   const results: ProcessedDocument[] = []
 
   for (const doc of documents) {

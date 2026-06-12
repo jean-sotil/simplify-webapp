@@ -121,7 +121,7 @@ async function buildRequirementTraceMap(
 // triggerAnalysis
 // ---------------------------------------------------------------------------
 
-export async function triggerAnalysis(projectId: string, selectedDocuments: unknown[]) {
+export async function triggerAnalysis(projectId: string, selectedDocuments: unknown[], options?: { mock?: boolean }) {
   const user = await requireAuth()
 
   // Validate selected documents shape
@@ -223,18 +223,26 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
           }))
       : []
 
-    // Fire-and-forget: don't await the full analysis
-    fetch(`${appUrl}/api/analyze-documents`, {
+    // Fire-and-forget: call analyze-documents in background
+    // In development, we don't await to avoid blocking the UI response,
+    // but the fetch still runs in the Node.js process.
+    const analyzePromise = fetch(`${appUrl}/api/analyze-documents`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         documents,
         analysisId: analysis.id,
         projectId,
+        mock: options?.mock ?? false,
       }),
     }).catch((err) => {
       console.error('[triggerAnalysis] Background analysis call failed:', err)
     })
+
+    // Don't await in production (fire-and-forget), but do await in dev for reliability
+    if (process.env.NODE_ENV === 'development') {
+      await analyzePromise
+    }
   } catch (err) {
     await supabaseAdmin
       .from('analysis_results')
