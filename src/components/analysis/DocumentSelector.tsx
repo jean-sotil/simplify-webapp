@@ -26,6 +26,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
   const [selected, setSelected] = useState<Map<string, DocumentRow>>(new Map())
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'hardware' | 'software'>('all')
+  const [searchText, setSearchText] = useState('')
 
   // Load all non-ETT documents on mount
   useEffect(() => {
@@ -77,8 +78,15 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
   }
 
   function getFilteredDocs() {
-    if (filter === 'all') return documents
-    return documents.filter(d => d.document_type === filter)
+    let docs = documents
+    if (filter !== 'all') {
+      docs = docs.filter(d => d.document_type === filter)
+    }
+    if (searchText.trim()) {
+      const q = searchText.toLowerCase()
+      docs = docs.filter(d => d.filename.toLowerCase().includes(q))
+    }
+    return docs
   }
 
   function handleRunAnalysis() {
@@ -143,6 +151,16 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
           </button>
         ))}
       </div>
+
+      {/* Search filter */}
+      <input
+        type="text"
+        value={searchText}
+        onChange={e => setSearchText(e.target.value)}
+        placeholder="Filter documents by name..."
+        className="w-full border rounded-sm px-3 py-2 text-sm focus:outline-none mb-4"
+        style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+      />
 
       {/* Document list */}
       {loading ? (

@@ -34,7 +34,7 @@ export function Navigation({ lang }: NavigationProps) {
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
         {/* Wordmark */}
         <Link
-          href={`/${lang}/projects`}
+          href={`/${lang}`}
           className="text-sm font-semibold tracking-tight"
           style={{ color: 'var(--color-ink)' }}
           aria-label="Simplify — home"

@@ -61,12 +61,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No documents provided' }, { status: 400 })
   }
 
-  // Helper to update processing stage in DB
+  // Helper to update processing stage in DB (accumulates as a log)
+  const stageLog: Array<{ time: string; message: string }> = []
   async function updateStage(stage: string) {
     if (!analysisId) return
     console.log(`[analyze] [${analysisId.substring(0, 8)}] Stage: ${stage}`)
+    stageLog.push({ time: new Date().toISOString(), message: stage })
     await supabaseAdmin.from('analysis_results').update({
-      analysis_metadata: { stage, updatedAt: new Date().toISOString() },
+      analysis_metadata: {
+        stage,
+        stageLog,
+        updatedAt: new Date().toISOString(),
+      },
     }).eq('id', analysisId)
   }
 
@@ -116,6 +122,7 @@ export async function POST(request: NextRequest) {
           analysisId,
           projectName,
           blobToken: process.env.BLOB_READ_WRITE_TOKEN,
+          onStage: updateStage,
         })
         console.log(`[analyze] [${analysisId.substring(0, 8)}] ZIP uploaded: ${zipFileUrl}`)
         await updateStage('Saving results...')
@@ -315,6 +322,7 @@ Respond in JSON ONLY:
         analysisId,
         projectName,
         blobToken: blobToken || process.env.BLOB_READ_WRITE_TOKEN,
+        onStage: updateStage,
       })
       console.log('[analyze-documents] ZIP generated:', zipFileUrl)
     } catch (err) {

@@ -130,7 +130,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
               className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
               style={{ color: 'var(--color-mute)' }}
             >
-              Select hardware documents
+              Select documents
             </h2>
             <AnalysisTrigger
               projectId={id}

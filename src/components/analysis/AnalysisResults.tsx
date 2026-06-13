@@ -1,85 +1,145 @@
 'use client'
 
-import { useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 export interface AnalysisResultData {
   id: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   zip_file_url?: string | null
-  analysis_metadata?: {
-    document_count?: number
-    documentCount?: number
-    total_pages?: number
-    totalAnnotations?: number
-  } | null
+  analysis_metadata?: Record<string, unknown> | null
   completed_at?: string | null
   error_message?: string | null
 }
 
 interface AnalysisResultsProps {
   result: AnalysisResultData | null
-  onRefresh?: () => void
 }
 
-export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const router = useRouter()
+export function AnalysisResults({ result: initialResult }: AnalysisResultsProps) {
+  const [result, setResult] = useState<AnalysisResultData | null>(initialResult)
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const logRef = useRef<HTMLDivElement>(null)
+  const [autoScroll, setAutoScroll] = useState(true)
 
-  const refresh = useCallback(() => {
-    if (onRefresh) {
-      onRefresh()
-    } else {
-      router.refresh()
+  const scrollToBottom = useCallback(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight
     }
-  }, [onRefresh, router])
+  }, [])
 
+  // Auto-scroll log to bottom when new entries arrive
+  useEffect(() => {
+    if (autoScroll) scrollToBottom()
+  })
+
+  function handleLogScroll() {
+    if (!logRef.current) return
+    const { scrollTop, scrollHeight, clientHeight } = logRef.current
+    // If user scrolled up more than 30px from bottom, disable auto-scroll
+    setAutoScroll(scrollHeight - scrollTop - clientHeight < 30)
+  }
+
+  // Poll for updates when processing
   useEffect(() => {
     if (result?.status === 'processing' || result?.status === 'pending') {
-      timerRef.current = setTimeout(() => refresh(), 5_000)
+      timerRef.current = setInterval(async () => {
+        if (!result?.id) return
+        try {
+          const res = await fetch(`/api/analysis-status?id=${result.id}`)
+          if (res.ok) {
+            const data = await res.json()
+            setResult(data)
+            if (data.status === 'completed' || data.status === 'failed') {
+              if (timerRef.current) clearInterval(timerRef.current)
+            }
+          }
+        } catch { /* ignore polling errors */ }
+      }, 2000)
     }
     return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
+      if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [result?.status, refresh])
+  }, [result?.status, result?.id])
+
+  // Update when parent passes new initial result
+  useEffect(() => {
+    if (initialResult) setResult(initialResult)
+  }, [initialResult])
 
   if (!result) {
     return (
       <div className="border rounded-md p-8 text-center" style={{ borderColor: 'var(--color-hairline)' }}>
         <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-          No analysis has been run yet. Select documents below and click Run Analysis.
+          No analysis has been run yet. Select documents and click Run Analysis.
         </p>
       </div>
     )
   }
 
   if (result.status === 'pending' || result.status === 'processing') {
-    const stage = (result.analysis_metadata as { stage?: string } | null)?.stage
+    const metadata = result.analysis_metadata as {
+      stage?: string
+      stageLog?: Array<{ time: string; message: string }>
+    } | null
+    const stage = metadata?.stage
+    const stageLog = metadata?.stageLog || []
+
     return (
       <div
-        className="border rounded-md p-8"
+        className="border rounded-md p-6"
         style={{ borderColor: 'var(--color-hairline)' }}
         role="status"
         aria-live="polite"
-        aria-label="Analysis in progress"
       >
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-4">
           <span
             className="inline-block w-4 h-4 border-2 rounded-full animate-spin"
             style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'var(--color-primary)' }}
-            aria-hidden="true"
           />
           <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
-            Analysis in progress…
+            Analysis in progress...
           </p>
         </div>
+
         {stage && (
-          <p className="text-xs ml-7" style={{ color: 'var(--color-mute)' }}>
+          <p className="text-sm ml-7 mb-3 font-medium" style={{ color: 'var(--color-ink)' }}>
             {stage}
           </p>
         )}
-        <p className="mt-3 text-xs" style={{ color: 'var(--color-mute)' }}>
-          This page refreshes automatically every 5 seconds.
+
+        {/* Stage log - shows all processing steps */}
+        {stageLog.length > 0 && (
+          <div className="ml-7 relative">
+            <div
+              ref={logRef}
+              onScroll={handleLogScroll}
+              className="max-h-48 overflow-y-auto border rounded-sm p-3 font-mono text-xs"
+              style={{ borderColor: 'var(--color-hairline)', backgroundColor: '#fafafa' }}
+            >
+              {stageLog.map((entry, i) => (
+                <p key={i} className="py-0.5 flex gap-2" style={{ color: 'var(--color-body)' }}>
+                  <span className="shrink-0 opacity-50">
+                    {new Date(entry.time).toLocaleTimeString()}
+                  </span>
+                  <span>{entry.message}</span>
+                </p>
+              ))}
+            </div>
+            {!autoScroll && (
+              <button
+                type="button"
+                onClick={() => { setAutoScroll(true); scrollToBottom() }}
+                className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded-sm border bg-white hover:opacity-70"
+                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
+              >
+                ↓ Latest
+              </button>
+            )}
+          </div>
+        )}
+
+        <p className="mt-3 ml-7 text-xs" style={{ color: 'var(--color-mute)' }}>
+          Polling every 2 seconds...
         </p>
       </div>
     )
@@ -103,8 +163,12 @@ export function AnalysisResults({ result, onRefresh }: AnalysisResultsProps) {
   }
 
   // Completed
-  const docCount = result.analysis_metadata?.documentCount ?? result.analysis_metadata?.document_count
-  const annotationCount = result.analysis_metadata?.totalAnnotations ?? result.analysis_metadata?.total_pages
+  const metadata = result.analysis_metadata as {
+    documentCount?: number
+    totalAnnotations?: number
+  } | null
+  const docCount = metadata?.documentCount
+  const annotationCount = metadata?.totalAnnotations
   const completedAt = result.completed_at ? new Date(result.completed_at).toLocaleString() : null
 
   return (

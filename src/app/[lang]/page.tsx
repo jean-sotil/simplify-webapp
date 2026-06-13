@@ -53,6 +53,7 @@ export default async function DashboardPage({ params }: Props) {
 
   const ettCount = documents.filter(d => d.document_type === 'ett').length
   const hardwareCount = documents.filter(d => d.document_type === 'hardware').length
+  const softwareCount = documents.filter(d => d.document_type === 'software').length
 
   const summaryCards = [
     { label: 'Total projects', value: projects.length, accent: 'var(--color-accent-blue)' },
@@ -136,14 +137,15 @@ export default async function DashboardPage({ params }: Props) {
         >
           Document library
         </h2>
-        <div className="grid grid-cols-2 gap-4 max-w-xs">
+        <div className="flex gap-4 w-1/2">
           {[
             { label: 'ETT specs', value: ettCount, color: 'var(--color-accent-blue)' },
             { label: 'Hardware', value: hardwareCount, color: 'var(--color-accent-orange)' },
+            { label: 'Software', value: softwareCount, color: '#059669' },
           ].map(item => (
             <div
               key={item.label}
-              className="border rounded-md p-4"
+              className="border rounded-md p-4 flex-1"
               style={{ borderColor: 'var(--color-hairline)' }}
             >
               <p className="text-xs" style={{ color: 'var(--color-mute)' }}>{item.label}</p>

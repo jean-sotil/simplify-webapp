@@ -38,23 +38,9 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
 
   if (triggered) {
     return (
-      <div
-        className="border rounded-md p-6 text-center"
-        style={{ borderColor: 'var(--color-hairline)' }}
-      >
-        <div className="flex items-center justify-center gap-3 mb-2">
-          <span
-            className="inline-block w-4 h-4 border-2 rounded-full animate-spin"
-            style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'var(--color-primary)' }}
-          />
-          <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
-            Analysis started. Processing documents...
-          </p>
-        </div>
-        <p className="text-xs" style={{ color: 'var(--color-mute)' }}>
-          Results will appear on the left panel. The page refreshes automatically.
-        </p>
-      </div>
+      <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
+        Analysis running. See progress on the left panel.
+      </p>
     )
   }
 

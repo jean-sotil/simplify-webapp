@@ -26,6 +26,7 @@ interface GenerateResultsInput {
   analysisId: string
   projectName: string
   blobToken?: string
+  onStage?: (message: string) => Promise<void>
 }
 
 /**
@@ -37,8 +38,9 @@ interface GenerateResultsInput {
  * Returns the URL of the uploaded ZIP file.
  */
 export async function generateAnalysisResults(input: GenerateResultsInput): Promise<string> {
-  const { processedDocs, analysisId, projectName } = input
+  const { processedDocs, analysisId, projectName, onStage } = input
   const blobToken = input.blobToken || process.env.BLOB_READ_WRITE_TOKEN || ''
+  const log = onStage || (async () => {})
 
   const zipFiles: Array<{ name: string; buffer: Buffer }> = []
 
@@ -47,6 +49,7 @@ export async function generateAnalysisResults(input: GenerateResultsInput): Prom
     const foundAnnotations = doc.annotations.filter(a => a.found && a.pageNum)
     if (foundAnnotations.length === 0 || !doc.originalFileUrl) continue
 
+    await log(`Annotating PDF: ${doc.filename} (${foundAnnotations.length} highlights)`)
     console.log(`[generate-results] Annotating PDF: ${doc.filename} (${foundAnnotations.length} highlights)`)
     const annotatedPdf = await annotatePdf(doc.originalFileUrl, doc.annotations, blobToken)
     if (annotatedPdf) {
@@ -55,13 +58,16 @@ export async function generateAnalysisResults(input: GenerateResultsInput): Prom
   }
 
   // 2. Generate Compliance Matrix Excel
+  await log('Generating compliance matrix (Excel)...')
   const excelBuffer = generateComplianceExcel(processedDocs, projectName)
   zipFiles.push({ name: `Matriz_Cumplimiento_${projectName.replace(/\s+/g, '_')}.xlsx`, buffer: excelBuffer })
 
   // 3. Create ZIP
+  await log(`Creating ZIP package (${zipFiles.length} files)...`)
   const zipBuffer = await createZipBuffer(zipFiles)
 
   // 4. Upload ZIP to Blob
+  await log('Uploading results...')
   const zipFilename = `analysis-results/${analysisId}/Resultados_${projectName.replace(/\s+/g, '_')}.zip`
   const blob = await put(zipFilename, zipBuffer, {
     access: 'private',
