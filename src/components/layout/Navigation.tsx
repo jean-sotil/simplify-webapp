@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
@@ -10,15 +11,16 @@ interface NavigationProps {
   lang: string
 }
 
-const NAV_LINKS = [
-  { href: '/projects', label: 'Projects' },
-  { href: '/documents', label: 'Documents' },
-]
-
 export function Navigation({ lang }: NavigationProps) {
+  const t = useTranslations('nav')
   const pathname = usePathname()
   const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const NAV_LINKS = [
+    { href: '/projects', label: t('projects') },
+    { href: '/documents', label: t('documents') },
+  ]
 
   async function handleSignOut() {
     const supabase = createSupabaseBrowserClient()
@@ -32,7 +34,6 @@ export function Navigation({ lang }: NavigationProps) {
       style={{ borderColor: 'var(--color-hairline)', backgroundColor: 'var(--color-canvas)' }}
     >
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
-        {/* Wordmark */}
         <Link
           href={`/${lang}`}
           className="text-sm font-semibold tracking-tight"
@@ -42,7 +43,6 @@ export function Navigation({ lang }: NavigationProps) {
           Simplify
         </Link>
 
-        {/* Desktop nav */}
         <nav className="hidden sm:flex items-center gap-1" aria-label="Main navigation">
           {NAV_LINKS.map(({ href, label }) => {
             const fullHref = `/${lang}${href}`
@@ -72,11 +72,10 @@ export function Navigation({ lang }: NavigationProps) {
             className="text-xs px-3 py-1.5 rounded-sm border transition-colors hover:bg-gray-50 cursor-pointer"
             style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
           >
-            Sign out
+            {t('signOut')}
           </button>
         </div>
 
-        {/* Mobile hamburger */}
         <button
           type="button"
           className="sm:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5"
@@ -91,7 +90,6 @@ export function Navigation({ lang }: NavigationProps) {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {menuOpen && (
         <nav
           id="mobile-menu"
@@ -123,10 +121,10 @@ export function Navigation({ lang }: NavigationProps) {
             <button
               type="button"
               onClick={handleSignOut}
-              className="text-xs"
+              className="text-xs cursor-pointer"
               style={{ color: 'var(--color-mute)' }}
             >
-              Sign out
+              {t('signOut')}
             </button>
           </div>
         </nav>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 
 export interface AnalysisResultData {
   id: string
@@ -16,6 +17,7 @@ interface AnalysisResultsProps {
 }
 
 export function AnalysisResults({ result: initialResult }: AnalysisResultsProps) {
+  const t = useTranslations('analysis')
   const [result, setResult] = useState<AnalysisResultData | null>(initialResult)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
@@ -70,7 +72,7 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
     return (
       <div className="border rounded-md p-8 text-center" style={{ borderColor: 'var(--color-hairline)' }}>
         <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-          No analysis has been run yet. Select documents and click Run Analysis.
+          {t('noAnalysis')}
         </p>
       </div>
     )
@@ -97,7 +99,7 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
             style={{ borderColor: 'var(--color-hairline)', borderTopColor: 'var(--color-primary)' }}
           />
           <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
-            Analysis in progress...
+            {t('inProgress')}
           </p>
         </div>
 
@@ -132,14 +134,14 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
                 className="absolute bottom-2 right-2 text-xs px-2 py-1 rounded-sm border bg-white hover:opacity-70"
                 style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
               >
-                ↓ Latest
+                ↓ {t('latestBtn')}
               </button>
             )}
           </div>
         )}
 
         <p className="mt-3 ml-7 text-xs" style={{ color: 'var(--color-mute)' }}>
-          Polling every 2 seconds...
+          {t('polling')}
         </p>
       </div>
     )
@@ -153,7 +155,7 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
         role="alert"
       >
         <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-accent-red)' }}>
-          Analysis failed
+          {t('failed')}
         </p>
         {result.error_message && (
           <p className="text-xs" style={{ color: 'var(--color-body)' }}>{result.error_message}</p>
@@ -175,7 +177,7 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
     <div className="border rounded-md p-6" style={{ borderColor: 'var(--color-hairline)' }}>
       <div className="flex items-center gap-2 mb-4">
         <span className="text-sm font-medium" style={{ color: 'var(--color-accent-green)' }}>
-          ● Analysis complete
+          ● {t('complete')}
         </span>
         {completedAt && (
           <span className="text-xs" style={{ color: 'var(--color-mute)' }}>{completedAt}</span>
@@ -186,13 +188,13 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
         <dl className="flex gap-6 mb-4">
           {docCount !== undefined && (
             <div>
-              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>Documents</dt>
+              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>{t('documentsCount')}</dt>
               <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{docCount}</dd>
             </div>
           )}
           {annotationCount !== undefined && (
             <div>
-              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>Annotations found</dt>
+              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>{t('annotationsFound')}</dt>
               <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{annotationCount}</dd>
             </div>
           )}
@@ -206,7 +208,7 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
           className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          Download results (ZIP)
+          {t('downloadResults')}
         </a>
       )}
     </div>

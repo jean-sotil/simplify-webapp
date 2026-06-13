@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import type { ProjectStage } from '@/lib/validation/schemas'
 
 export const metadata: Metadata = { title: 'Dashboard' }
@@ -33,6 +34,7 @@ export default async function DashboardPage({ params }: Props) {
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
 
+  const t = await getTranslations('dashboard')
   const supabase = await createSupabaseServerClient()
 
   const [projectsRes, documentsRes, analysisRes] = await Promise.all([
@@ -56,9 +58,9 @@ export default async function DashboardPage({ params }: Props) {
   const softwareCount = documents.filter(d => d.document_type === 'software').length
 
   const summaryCards = [
-    { label: 'Total projects', value: projects.length, accent: 'var(--color-accent-blue)' },
-    { label: 'Documents', value: documents.length, accent: 'var(--color-accent-purple)' },
-    { label: 'Completed analyses', value: completedAnalyses, accent: 'var(--color-accent-green)' },
+    { label: t('totalProjects'), value: projects.length, accent: 'var(--color-accent-blue)' },
+    { label: t('documents'), value: documents.length, accent: 'var(--color-accent-purple)' },
+    { label: t('completedAnalyses'), value: completedAnalyses, accent: 'var(--color-accent-green)' },
   ]
 
   return (
@@ -68,10 +70,10 @@ export default async function DashboardPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-1"
           style={{ color: 'var(--color-mute)', letterSpacing: '1.5px' }}
         >
-          Dashboard
+          {t('title')}
         </p>
         <h1 className="text-4xl font-semibold" style={{ color: 'var(--color-ink)' }}>
-          Overview
+          {t('overview')}
         </h1>
       </div>
 
@@ -104,7 +106,7 @@ export default async function DashboardPage({ params }: Props) {
             className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
             style={{ color: 'var(--color-mute)' }}
           >
-            Projects by stage
+            {t('projectsByStage')}
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             {(Object.keys(STAGE_LABELS) as ProjectStage[]).map(stage => (
@@ -135,13 +137,13 @@ export default async function DashboardPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
           style={{ color: 'var(--color-mute)' }}
         >
-          Document library
+          {t('documentLibrary')}
         </h2>
         <div className="flex gap-4 w-1/2">
           {[
-            { label: 'ETT specs', value: ettCount, color: 'var(--color-accent-blue)' },
-            { label: 'Hardware', value: hardwareCount, color: 'var(--color-accent-orange)' },
-            { label: 'Software', value: softwareCount, color: '#059669' },
+            { label: t('ettSpecs'), value: ettCount, color: 'var(--color-accent-blue)' },
+            { label: t('hardware'), value: hardwareCount, color: 'var(--color-accent-orange)' },
+            { label: t('software'), value: softwareCount, color: '#059669' },
           ].map(item => (
             <div
               key={item.label}
@@ -164,14 +166,14 @@ export default async function DashboardPage({ params }: Props) {
           className="rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          View projects
+          {t('viewProjects')}
         </a>
         <a
           href={`/${lang}/documents`}
           className="rounded-sm px-5 py-3 text-sm font-medium border transition-colors hover:bg-gray-50"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         >
-          View documents
+          {t('viewDocuments')}
         </a>
       </div>
     </main>

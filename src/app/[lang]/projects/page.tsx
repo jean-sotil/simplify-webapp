@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { ProjectCard } from '@/components/projects/ProjectCard'
 
 export async function generateMetadata(_props: { params: Promise<{ lang: string }> }): Promise<Metadata> {
@@ -20,6 +21,7 @@ export default async function ProjectsPage({ params }: Props) {
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
 
+  const t = await getTranslations('projects')
   const supabase = await createSupabaseServerClient()
 
   // For POC: fetch projects where owner_id = user.id (team_id TBD after teams provisioning)
@@ -39,13 +41,13 @@ export default async function ProjectsPage({ params }: Props) {
             className="text-xs font-medium uppercase tracking-widest mb-1"
             style={{ color: 'var(--color-mute)', letterSpacing: '1.5px' }}
           >
-            Projects
+            {t('title')}
           </p>
           <h1
             className="text-4xl font-semibold"
             style={{ color: 'var(--color-ink)' }}
           >
-            Your Projects
+            {t('yourProjects')}
           </h1>
         </div>
         <a
@@ -56,7 +58,7 @@ export default async function ProjectsPage({ params }: Props) {
             color: 'var(--color-on-primary)',
           }}
         >
-          New project
+          {t('newProject')}
         </a>
       </div>
 
@@ -72,7 +74,7 @@ export default async function ProjectsPage({ params }: Props) {
           style={{ borderColor: 'var(--color-hairline)' }}
         >
           <p style={{ color: 'var(--color-mute)' }} className="text-sm">
-            No projects yet.
+            {t('noProjects')}
           </p>
           <a
             href={`/${lang}/projects/new`}
@@ -82,7 +84,7 @@ export default async function ProjectsPage({ params }: Props) {
               color: 'var(--color-on-primary)',
             }}
           >
-            Create your first project
+            {t('createFirst')}
           </a>
         </div>
       )}

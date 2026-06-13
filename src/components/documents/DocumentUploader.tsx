@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { upload } from '@vercel/blob/client'
 import { uploadDocument, indexUploadedDocument } from '@/app/[lang]/documents/actions'
 
@@ -21,6 +22,7 @@ const DIRECT_UPLOAD_LIMIT = 4 * 1024 * 1024 // 4 MB
 
 // Vercel Fluid Compute enables larger body sizes for Server Actions
 export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps) {
+  const t = useTranslations('documents')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<FileEntry[]>([])
   const [defaultDocType, setDefaultDocType] = useState<'ett' | 'hardware' | 'software'>('hardware')
@@ -223,10 +225,10 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
           disabled={isUploading}
         />
         <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-          Drag &amp; drop PDFs here, or click to select
+          {t('dragDrop')}
         </p>
         <p className="text-xs mt-1" style={{ color: 'var(--color-mute)' }}>
-          Multiple files supported • Max 50 MB each
+          {t('multipleSupported')}
         </p>
       </div>
 
@@ -237,7 +239,7 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
           className="block text-sm font-medium mb-1"
           style={{ color: 'var(--color-ink)' }}
         >
-          Default type for new files
+          {t('defaultType')}
         </label>
         <select
           id="default-doc-type"
@@ -340,8 +342,8 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
           aria-busy={isUploading}
         >
           {isUploading
-            ? 'Uploading…'
-            : `Upload ${pendingCount} file${pendingCount !== 1 ? 's' : ''}`}
+            ? t('uploading')
+            : t('uploadFiles', { count: pendingCount })}
         </button>
 
         {completedCount > 0 && (
@@ -351,7 +353,7 @@ export function DocumentUploader({ teamId, lang: _lang }: DocumentUploaderProps)
             className="rounded-sm px-4 py-3 text-sm border hover:opacity-70"
             style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
           >
-            Clear done
+            {t('clearDone')}
           </button>
         )}
       </div>

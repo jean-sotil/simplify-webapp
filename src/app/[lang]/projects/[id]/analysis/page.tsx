@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { AnalysisTrigger } from '@/components/analysis/AnalysisTrigger'
 import { AnalysisResults, type AnalysisResultData } from '@/components/analysis/AnalysisResults'
 import type { Metadata } from 'next'
@@ -33,6 +34,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
 
+  const t = await getTranslations('analysis')
   const supabase = await createSupabaseServerClient()
 
   const { data: project, error } = await supabase
@@ -82,10 +84,10 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-1"
           style={{ color: 'var(--color-mute)', letterSpacing: '1.5px' }}
         >
-          Analysis
+          {t('title')}
         </p>
         <h1 className="text-3xl font-semibold" style={{ color: 'var(--color-ink)' }}>
-          Document Analysis
+          {t('title')}
         </h1>
       </div>
 
@@ -97,18 +99,17 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           role="alert"
         >
           <p className="text-sm font-medium mb-2" style={{ color: 'var(--color-ink)' }}>
-            An ETT document is required before analysis can start.
+            {t('ettRequired')}
           </p>
           <p className="text-sm mb-4" style={{ color: 'var(--color-body)' }}>
-            Attach an ETT specification document to this project first, then return here to run
-            analysis.
+            {t('ettRequiredDesc')}
           </p>
           <a
             href={`/${lang}/projects/${id}`}
             className="inline-block rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
             style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            &larr; Back to project
+            &larr; {t('backToProject')}
           </a>
         </div>
       ) : (
@@ -119,7 +120,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
               className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
               style={{ color: 'var(--color-mute)' }}
             >
-              Results
+              {t('results')}
             </h2>
             <AnalysisResults result={analysis as AnalysisResultData | null} />
           </section>
@@ -130,7 +131,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
               className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
               style={{ color: 'var(--color-mute)' }}
             >
-              Select documents
+              {t('selectDocuments')}
             </h2>
             <AnalysisTrigger
               projectId={id}

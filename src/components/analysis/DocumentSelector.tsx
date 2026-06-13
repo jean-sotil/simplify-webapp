@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import type { SelectedDocument } from '@/lib/validation/schemas'
 
 export interface EttDocument {
@@ -22,6 +23,8 @@ interface DocumentSelectorProps {
 }
 
 export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelectorProps) {
+  const t = useTranslations('analysis')
+  const tc = useTranslations('common')
   const [documents, setDocuments] = useState<DocumentRow[]>([])
   const [selected, setSelected] = useState<Map<string, DocumentRow>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -146,7 +149,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
             }`}
             style={filter !== f ? { color: 'var(--color-ink)' } : undefined}
           >
-            {f === 'all' ? 'All' : f === 'hardware' ? 'Hardware' : 'Software'}
+            {f === 'all' ? t('all') : f === 'hardware' ? t('hardware') : t('software')}
             {f === 'all' ? ` (${documents.length})` : ` (${documents.filter(d => d.document_type === f).length})`}
           </button>
         ))}
@@ -157,7 +160,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
         type="text"
         value={searchText}
         onChange={e => setSearchText(e.target.value)}
-        placeholder="Filter documents by name..."
+        placeholder={t('filterByName')}
         className="w-full border rounded-sm px-3 py-2 text-sm focus:outline-none mb-4"
         style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
       />
@@ -165,11 +168,11 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
       {/* Document list */}
       {loading ? (
         <p className="text-sm py-6 text-center" style={{ color: 'var(--color-mute)' }}>
-          Loading documents...
+          {tc('loadingDocuments')}
         </p>
       ) : filteredDocs.length === 0 ? (
         <p className="text-sm py-6 text-center" style={{ color: 'var(--color-mute)' }}>
-          No {filter === 'all' ? '' : filter} documents uploaded yet.
+          {tc('noDocumentsUploaded')}
         </p>
       ) : (
         <>
@@ -180,7 +183,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
               className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
               style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
             >
-              Select all
+              {t('selectAll')}
             </button>
             <button
               type="button"
@@ -188,7 +191,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
               className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
               style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
             >
-              Deselect all
+              {t('deselectAll')}
             </button>
           </div>
           <ul
@@ -238,7 +241,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
           className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          Run analysis with {selectedCount} document{selectedCount !== 1 ? 's' : ''}
+          {t('runAnalysis', { count: selectedCount })}
         </button>
       )}
     </div>

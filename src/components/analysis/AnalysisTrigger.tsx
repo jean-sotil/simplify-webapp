@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { triggerAnalysis } from '@/app/[lang]/projects/[id]/analysis/actions'
 import { DocumentSelector, type EttDocument } from '@/components/analysis/DocumentSelector'
 import type { SelectedDocument } from '@/lib/validation/schemas'
@@ -12,6 +13,7 @@ interface AnalysisTriggerProps {
 }
 
 export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps) {
+  const t = useTranslations('analysis')
   const [isPending, startTransition] = useTransition()
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [triggered, setTriggered] = useState(false)
@@ -39,7 +41,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
   if (triggered) {
     return (
       <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-        Analysis running. See progress on the left panel.
+        {t('triggered')}
       </p>
     )
   }
@@ -58,7 +60,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
           onChange={(e) => setUseMock(e.target.checked)}
         />
         <label htmlFor="mock-toggle" className="text-sm" style={{ color: 'var(--color-mute)' }}>
-          Mock mode (skip LLM, return fake results instantly)
+          {t('mockMode')}
         </label>
       </div>
 
@@ -69,7 +71,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
           className="text-sm mb-4"
           style={{ color: 'var(--color-mute)' }}
         >
-          {useMock ? 'Running mock analysis...' : 'Running analysis (this may take a few minutes)...'}
+          {useMock ? t('mockTriggering') : t('triggering')}
         </p>
       )}
       {triggerError && (

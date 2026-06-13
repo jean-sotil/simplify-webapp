@@ -2,11 +2,13 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 const supabase = createSupabaseBrowserClient()
 
 export default function SignInPage() {
+  const t = useTranslations('auth')
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -67,7 +69,7 @@ export default function SignInPage() {
             className="text-3xl font-semibold"
             style={{ color: 'var(--color-ink)' }}
           >
-            {mode === 'signin' ? 'Sign in' : 'Create account'}
+            {mode === 'signin' ? t('signIn') : t('createAccount')}
           </h1>
         </div>
 
@@ -81,7 +83,7 @@ export default function SignInPage() {
               color: 'var(--color-ink)',
             }}
           >
-            Account created. Check your email to confirm, then sign in.
+            {t('accountCreated')}
           </div>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
@@ -121,7 +123,7 @@ export default function SignInPage() {
                 onChange={e => setPassword(e.target.value)}
                 required
                 autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
-                placeholder={mode === 'signup' ? 'Min 6 characters' : ''}
+                placeholder={mode === 'signup' ? t('minChars') : ''}
                 minLength={6}
                 className="w-full rounded-sm px-4 py-3 text-sm border focus:outline-none"
                 style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
@@ -150,14 +152,14 @@ export default function SignInPage() {
               aria-busy={status === 'loading'}
             >
               {status === 'loading'
-                ? (mode === 'signin' ? 'Signing in...' : 'Creating account...')
-                : (mode === 'signin' ? 'Sign in' : 'Create account')}
+                ? (mode === 'signin' ? t('signingIn') : t('creatingAccount'))
+                : (mode === 'signin' ? t('signIn') : t('createAccount'))}
             </button>
 
             <p className="text-center text-sm" style={{ color: 'var(--color-mute)' }}>
               {mode === 'signin' ? (
                 <>
-                  No account?{' '}
+                  {t('noAccount')}{' '}
                   <button
                     type="button"
                     onClick={() => { setMode('signup'); setStatus('idle'); setErrorMessage('') }}
@@ -169,7 +171,7 @@ export default function SignInPage() {
                 </>
               ) : (
                 <>
-                  Already have an account?{' '}
+                  {t('alreadyHaveAccount')}{' '}
                   <button
                     type="button"
                     onClick={() => { setMode('signin'); setStatus('idle'); setErrorMessage('') }}

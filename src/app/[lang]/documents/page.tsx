@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { DocumentUploader } from '@/components/documents/DocumentUploader'
 
 // Allow server actions called from this page up to 300s (large PDF processing)
@@ -30,6 +31,7 @@ export default async function DocumentsPage({ params }: Props) {
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
 
+  const t = await getTranslations('documents')
   const supabase = await createSupabaseServerClient()
 
   const { data: documents, error } = await supabase
@@ -47,10 +49,10 @@ export default async function DocumentsPage({ params }: Props) {
             className="text-xs font-medium uppercase tracking-[1.5px] mb-1"
             style={{ color: 'var(--color-mute)' }}
           >
-            Documents
+            {t('allDocuments')}
           </p>
           <h1 className="text-3xl font-semibold" style={{ color: 'var(--color-ink)' }}>
-            Document Library
+            {t('title')}
           </h1>
         </div>
         <a
@@ -58,7 +60,7 @@ export default async function DocumentsPage({ params }: Props) {
           className="text-sm font-medium underline-offset-2 hover:underline"
           style={{ color: 'var(--color-ink)' }}
         >
-          Semantic search →
+          {t('semanticSearch')} →
         </a>
       </div>
 
@@ -68,7 +70,7 @@ export default async function DocumentsPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
           style={{ color: 'var(--color-mute)' }}
         >
-          Upload new document
+          {t('upload')}
         </h2>
         <div className="max-w-lg">
           <DocumentUploader teamId={user.id} lang={lang} />
@@ -81,7 +83,7 @@ export default async function DocumentsPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
           style={{ color: 'var(--color-mute)' }}
         >
-          All documents ({documents?.length ?? 0})
+          {t('allDocuments')} ({documents?.length ?? 0})
         </h2>
 
         {documents && documents.length > 0 ? (
@@ -113,11 +115,11 @@ export default async function DocumentsPage({ params }: Props) {
                         style={{ color: 'var(--color-accent-green)' }}
                         title="Indexed for semantic search"
                       >
-                        ● Indexed
+                        ● {t('indexed')}
                       </span>
                     ) : (
                       <span className="text-xs" style={{ color: 'var(--color-mute)' }}>
-                        ○ Not indexed
+                        ○ {t('notIndexed')}
                       </span>
                     )}
                     <time
@@ -138,7 +140,7 @@ export default async function DocumentsPage({ params }: Props) {
             style={{ borderColor: 'var(--color-hairline)' }}
           >
             <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-              No documents uploaded yet.
+              {t('noDocuments')}
             </p>
           </div>
         )}

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { searchChunksAction, type ChunkSearchResult } from '@/app/[lang]/documents/search/actions'
 
 interface DocumentRow {
@@ -10,6 +11,7 @@ interface DocumentRow {
 }
 
 export function SemanticSearch() {
+  const t = useTranslations('search')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ChunkSearchResult[]>([])
   const [status, setStatus] = useState<'idle' | 'searching' | 'done' | 'error'>('idle')
@@ -69,7 +71,7 @@ export function SemanticSearch() {
           type="text"
           value={query}
           onChange={e => setQuery(e.target.value)}
-          placeholder="Ask a question or describe what you're looking for..."
+          placeholder={t('placeholder')}
           className="w-full border rounded-sm px-4 py-3 text-sm focus:outline-none mb-3"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         />
@@ -82,7 +84,7 @@ export function SemanticSearch() {
             className="text-xs underline hover:opacity-70"
             style={{ color: 'var(--color-mute)' }}
           >
-            {showDocFilter ? 'Hide document filter' : 'Filter by specific documents'}
+            {showDocFilter ? t('hideFilter') : t('filterDocs')}
             {selectedDocIds.size > 0 && ` (${selectedDocIds.size} selected)`}
           </button>
           {selectedDocIds.size > 0 && (
@@ -92,7 +94,7 @@ export function SemanticSearch() {
               className="text-xs hover:opacity-70"
               style={{ color: 'var(--color-accent-red)' }}
             >
-              Clear filter
+              {t('clearFilter')}
             </button>
           )}
         </div>
@@ -134,7 +136,7 @@ export function SemanticSearch() {
           className="rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40"
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          {status === 'searching' ? 'Searching...' : 'Search'}
+          {status === 'searching' ? t('searching') : t('button')}
         </button>
       </form>
 
@@ -147,12 +149,12 @@ export function SemanticSearch() {
       {status === 'done' && (
         <div>
           <p className="text-xs mb-4" style={{ color: 'var(--color-mute)' }}>
-            {results.length} result{results.length !== 1 ? 's' : ''} found
+            {t('results', { count: results.length })}
           </p>
 
           {results.length === 0 ? (
             <p className="text-sm py-8 text-center" style={{ color: 'var(--color-mute)' }}>
-              No matching content found. Try rephrasing your query.
+              {t('noResults')}
             </p>
           ) : (
             <ul className="space-y-4">
@@ -180,11 +182,11 @@ export function SemanticSearch() {
                     </span>
                     {result.pageNumber && (
                       <span className="text-xs" style={{ color: 'var(--color-mute)' }}>
-                        Page {result.pageNumber}
+                        {t('page')} {result.pageNumber}
                       </span>
                     )}
                     <span className="ml-auto text-xs" style={{ color: 'var(--color-mute)' }}>
-                      {(result.similarity * 100).toFixed(0)}% match
+                      {(result.similarity * 100).toFixed(0)}% {t('match')}
                     </span>
                   </div>
 
