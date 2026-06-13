@@ -69,7 +69,7 @@ export function Navigation({ lang }: NavigationProps) {
           <button
             type="button"
             onClick={handleSignOut}
-            className="text-xs px-3 py-1.5 rounded-sm border transition-colors hover:bg-gray-50"
+            className="text-xs px-3 py-1.5 rounded-sm border transition-colors hover:bg-gray-50 cursor-pointer"
             style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
           >
             Sign out
