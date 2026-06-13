@@ -29,7 +29,33 @@
     "newProject": "Nuevo proyecto",
     "noProjects": "Aún no hay proyectos.",
     "createFirst": "Crea tu primer proyecto",
-    "updated": "Actualizado"
+    "updated": "Actualizado",
+    "viewDetails": "Ver detalles",
+    "pipeline": "Pipeline",
+    "allProjects": "Todos los proyectos",
+    "attachedDocuments": "Documentos adjuntos",
+    "noDocsAttached": "No hay documentos adjuntos aún.",
+    "remove": "Eliminar",
+    "analysisSection": "Análisis",
+    "openAnalysis": "Abrir análisis",
+    "attachEttToEnable": "Adjunta un documento ETT a este proyecto para habilitar el análisis.",
+    "attach": {
+      "trigger": "Adjuntar documentos",
+      "title": "Adjuntar documentos",
+      "description": "Selecciona uno o más documentos para adjuntar a este proyecto.",
+      "allAttached": "Todos los documentos ya están adjuntos.",
+      "cancel": "Cancelar",
+      "attaching": "Adjuntando...",
+      "attach": "Adjuntar ({count})"
+    },
+    "stages": {
+      "initiation": "Inicio",
+      "planning": "Planificación",
+      "docs_analysis": "Análisis de Docs",
+      "development": "Desarrollo",
+      "deployment": "Despliegue",
+      "completed": "Completado"
+    }
   },
   "documents": {
     "title": "Biblioteca de Documentos",

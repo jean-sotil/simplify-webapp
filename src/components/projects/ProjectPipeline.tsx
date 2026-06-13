@@ -1,16 +1,17 @@
 'use client'
 
 import { useTransition } from 'react'
+import { useTranslations } from 'next-intl'
 import { updateProjectStage } from '@/app/[lang]/projects/actions'
 import type { ProjectStage } from '@/lib/validation/schemas'
 
-const STAGES: { value: ProjectStage; label: string }[] = [
-  { value: 'initiation', label: 'Initiation' },
-  { value: 'planning', label: 'Planning' },
-  { value: 'docs_analysis', label: 'Docs Analysis' },
-  { value: 'development', label: 'Development' },
-  { value: 'deployment', label: 'Deployment' },
-  { value: 'completed', label: 'Completed' },
+const STAGES: ProjectStage[] = [
+  'initiation',
+  'planning',
+  'docs_analysis',
+  'development',
+  'deployment',
+  'completed',
 ]
 
 interface ProjectPipelineProps {
@@ -19,8 +20,9 @@ interface ProjectPipelineProps {
 }
 
 export function ProjectPipeline({ projectId, currentStage }: ProjectPipelineProps) {
+  const t = useTranslations('projects.stages')
   const [isPending, startTransition] = useTransition()
-  const currentIndex = STAGES.findIndex(s => s.value === currentStage)
+  const currentIndex = STAGES.findIndex(s => s === currentStage)
 
   function handleStageClick(stage: ProjectStage) {
     if (stage === currentStage) return
@@ -34,16 +36,17 @@ export function ProjectPipeline({ projectId, currentStage }: ProjectPipelineProp
       <ol className="flex items-center overflow-x-auto gap-0 flex-wrap gap-y-2">
         {STAGES.map((stage, index) => {
           const isCompleted = index < currentIndex
-          const isCurrent = stage.value === currentStage
+          const isCurrent = stage === currentStage
+          const label = t(stage)
 
           return (
-            <li key={stage.value} className="flex items-center">
+            <li key={stage} className="flex items-center">
               <button
                 type="button"
-                onClick={() => handleStageClick(stage.value)}
+                onClick={() => handleStageClick(stage)}
                 disabled={isPending}
                 aria-current={isCurrent ? 'step' : undefined}
-                aria-label={`${stage.label}${isCurrent ? ' (current stage)' : isCompleted ? ' (completed)' : ''}`}
+                aria-label={`${label}${isCurrent ? ' (current)' : ''}`}
                 className={[
                   'px-4 py-2 text-sm font-medium rounded-sm transition-colors',
                   isPending ? 'opacity-50 cursor-wait' : 'cursor-pointer',
@@ -65,7 +68,7 @@ export function ProjectPipeline({ projectId, currentStage }: ProjectPipelineProp
                       }
                 }
               >
-                {stage.label}
+                {label}
               </button>
               {index < STAGES.length - 1 && (
                 <span

@@ -1,14 +1,8 @@
-import Link from 'next/link'
-import type { ProjectStage } from '@/lib/validation/schemas'
+'use client'
 
-const STAGE_LABELS: Record<ProjectStage, string> = {
-  initiation: 'Initiation',
-  planning: 'Planning',
-  docs_analysis: 'Docs Analysis',
-  development: 'Development',
-  deployment: 'Deployment',
-  completed: 'Completed',
-}
+import Link from 'next/link'
+import { useTranslations } from 'next-intl'
+import type { ProjectStage } from '@/lib/validation/schemas'
 
 const STAGE_STYLES: Record<ProjectStage, React.CSSProperties> = {
   initiation: {
@@ -49,7 +43,8 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, lang }: ProjectCardProps) {
-  const stageLabel = STAGE_LABELS[project.stage]
+  const t = useTranslations('projects')
+  const stageLabel = t(`stages.${project.stage}`)
   const stageStyle = STAGE_STYLES[project.stage]
   const updatedAt = new Date(project.updated_at).toLocaleDateString()
 
@@ -72,7 +67,6 @@ export function ProjectCard({ project, lang }: ProjectCardProps) {
         <span
           className="shrink-0 text-xs font-medium px-2 py-1 rounded-sm"
           style={stageStyle}
-          aria-label={`Stage: ${stageLabel}`}
         >
           {stageLabel}
         </span>
@@ -93,14 +87,14 @@ export function ProjectCard({ project, lang }: ProjectCardProps) {
           dateTime={project.updated_at}
           style={{ color: 'var(--color-mute)' }}
         >
-          Updated {updatedAt}
+          {t('updated')} {updatedAt}
         </time>
         <Link
           href={`/${lang}/projects/${project.id}`}
           className="text-xs font-medium underline-offset-2 hover:underline"
           style={{ color: 'var(--color-ink)' }}
         >
-          View details →
+          {t('viewDetails')} →
         </Link>
       </div>
     </article>

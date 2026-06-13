@@ -29,7 +29,33 @@
     "newProject": "New project",
     "noProjects": "No projects yet.",
     "createFirst": "Create your first project",
-    "updated": "Updated"
+    "updated": "Updated",
+    "viewDetails": "View details",
+    "pipeline": "Pipeline",
+    "allProjects": "All projects",
+    "attachedDocuments": "Attached documents",
+    "noDocsAttached": "No documents attached yet.",
+    "remove": "Remove",
+    "analysisSection": "Analysis",
+    "openAnalysis": "Open analysis",
+    "attachEttToEnable": "Attach an ETT document to this project to enable analysis.",
+    "attach": {
+      "trigger": "Attach documents",
+      "title": "Attach documents",
+      "description": "Select one or more documents to attach to this project.",
+      "allAttached": "All documents are already attached.",
+      "cancel": "Cancel",
+      "attaching": "Attaching...",
+      "attach": "Attach ({count})"
+    },
+    "stages": {
+      "initiation": "Initiation",
+      "planning": "Planning",
+      "docs_analysis": "Docs Analysis",
+      "development": "Development",
+      "deployment": "Deployment",
+      "completed": "Completed"
+    }
   },
   "documents": {
     "title": "Document Library",

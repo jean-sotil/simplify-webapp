@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { ProjectPipeline } from '@/components/projects/ProjectPipeline'
 import { AttachDocumentsDialog } from '@/components/projects/AttachDocumentsDialog'
 import { detachDocumentFromProject } from '@/app/[lang]/projects/[id]/actions'
@@ -27,6 +28,7 @@ export default async function ProjectDetailPage({ params }: Props) {
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
 
+  const t = await getTranslations('projects')
   const supabase = await createSupabaseServerClient()
 
   const { data: project, error } = await supabase
@@ -66,7 +68,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           className="text-sm inline-block mb-4 hover:underline underline-offset-2"
           style={{ color: 'var(--color-mute)' }}
         >
-          ← All projects
+          ← {t('allProjects')}
         </a>
         <h1 className="text-3xl font-semibold mb-1" style={{ color: 'var(--color-ink)' }}>
           {project.name}
@@ -84,7 +86,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-3"
           style={{ color: 'var(--color-mute)' }}
         >
-          Pipeline
+          {t('pipeline')}
         </h2>
         <ProjectPipeline projectId={project.id} currentStage={project.stage as ProjectStage} />
       </section>
@@ -96,7 +98,7 @@ export default async function ProjectDetailPage({ params }: Props) {
             className="text-xs font-medium uppercase tracking-[1.5px]"
             style={{ color: 'var(--color-mute)' }}
           >
-            Attached documents ({attachedDocuments.length})
+            {t('attachedDocuments')} ({attachedDocuments.length})
           </h2>
           <AttachDocumentsDialog
             projectId={project.id}
@@ -137,7 +139,7 @@ export default async function ProjectDetailPage({ params }: Props) {
                     className="text-xs hover:underline ml-4"
                     style={{ color: 'var(--color-accent-red)' }}
                   >
-                    Remove
+                    {t('remove')}
                   </button>
                 </form>
               </li>
@@ -145,7 +147,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           </ul>
         ) : (
           <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-            No documents attached yet.
+            {t('noDocsAttached')}
           </p>
         )}
       </section>
@@ -156,7 +158,7 @@ export default async function ProjectDetailPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-3"
           style={{ color: 'var(--color-mute)' }}
         >
-          Analysis
+          {t('analysisSection')}
         </h2>
         {attachedDocuments.some((d) => d.document_type === 'ett') ? (
           <a
@@ -164,7 +166,7 @@ export default async function ProjectDetailPage({ params }: Props) {
             className="inline-block rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
             style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            Open analysis →
+            {t('openAnalysis')} →
           </a>
         ) : (
           <div>
@@ -172,7 +174,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               className="text-sm mb-3"
               style={{ color: 'var(--color-body)' }}
             >
-              Attach an ETT document to this project to enable analysis.
+              {t('attachEttToEnable')}
             </p>
             <span
               className="inline-block rounded-sm px-5 py-3 text-sm font-medium opacity-40 cursor-not-allowed select-none"
@@ -180,7 +182,7 @@ export default async function ProjectDetailPage({ params }: Props) {
               aria-disabled="true"
               role="button"
             >
-              Open analysis →
+              {t('openAnalysis')} →
             </span>
           </div>
         )}

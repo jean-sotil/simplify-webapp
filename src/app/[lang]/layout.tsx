@@ -21,7 +21,7 @@ export async function generateMetadata(_props: { params: Promise<{ lang: string 
 export default async function LocaleLayout({ children, params }: Props) {
   const { lang } = await params
 
-  if (!routing.locales.includes(lang as 'en' | 'es')) {
+  if (!routing.locales.includes(lang as 'en' | 'es' | 'pt')) {
     notFound()
   }
 

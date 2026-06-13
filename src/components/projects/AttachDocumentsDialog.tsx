@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useTranslations } from 'next-intl'
 import * as Dialog from '@radix-ui/react-dialog'
 import { attachDocumentToProject } from '@/app/[lang]/projects/[id]/actions'
 
@@ -13,14 +14,14 @@ interface Document {
 interface AttachDocumentsDialogProps {
   projectId: string
   availableDocuments: Document[]
-  triggerLabel?: string
 }
 
 export function AttachDocumentsDialog({
   projectId,
   availableDocuments,
-  triggerLabel = 'Attach documents',
+  
 }: AttachDocumentsDialogProps) {
+  const t = useTranslations('projects.attach')
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
@@ -60,7 +61,7 @@ export function AttachDocumentsDialog({
           className="rounded-sm px-4 py-2 text-sm font-medium border transition-colors hover:bg-gray-50"
           style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
         >
-          {triggerLabel}
+          {t('trigger')}
         </button>
       </Dialog.Trigger>
 
@@ -69,25 +70,23 @@ export function AttachDocumentsDialog({
         <Dialog.Content
           className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-md bg-white p-6 shadow-xl focus:outline-none"
           style={{ border: '1px solid var(--color-hairline)' }}
-          aria-describedby="attach-dialog-desc"
         >
           <Dialog.Title
             className="text-base font-semibold mb-1"
             style={{ color: 'var(--color-ink)' }}
           >
-            Attach documents
+            {t('title')}
           </Dialog.Title>
           <Dialog.Description
-            id="attach-dialog-desc"
             className="text-sm mb-4"
             style={{ color: 'var(--color-mute)' }}
           >
-            Select one or more documents to attach to this project.
+            {t('description')}
           </Dialog.Description>
 
           {availableDocuments.length === 0 ? (
             <p className="text-sm py-4 text-center" style={{ color: 'var(--color-mute)' }}>
-              All documents are already attached.
+              {t('allAttached')}
             </p>
           ) : (
             <fieldset className="mb-4">
@@ -139,7 +138,7 @@ export function AttachDocumentsDialog({
                 className="text-sm px-4 py-2 rounded-sm border"
                 style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
               >
-                Cancel
+                {t('cancel')}
               </button>
             </Dialog.Close>
             <button
