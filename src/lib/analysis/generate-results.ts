@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { PDFDocument, rgb } from 'pdf-lib'
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 import { put } from '@vercel/blob'
 
 interface AnnotationResult {
@@ -59,7 +59,7 @@ export async function generateAnalysisResults(input: GenerateResultsInput): Prom
 
   // 2. Generate Compliance Matrix Excel
   await log('Generating compliance matrix (Excel)...')
-  const excelBuffer = generateComplianceExcel(processedDocs, projectName)
+  const excelBuffer = await generateComplianceExcel(processedDocs, projectName)
   zipFiles.push({ name: `Matriz_Cumplimiento_${projectName.replace(/\s+/g, '_')}.xlsx`, buffer: excelBuffer })
 
   // 3. Create ZIP
@@ -80,72 +80,135 @@ export async function generateAnalysisResults(input: GenerateResultsInput): Prom
 }
 
 /**
- * Generates the Compliance Matrix Excel using the template file as base.
- * Creates one tab per document, preserving the template's formatting.
+ * Generates the Compliance Matrix Excel by cloning the template sheet for each document.
+ * Preserves all formatting, styles, and merged cells from the original template.
  */
-function generateComplianceExcel(processedDocs: ProcessedDocument[], projectName: string): Buffer {
-  // Create workbook from scratch (template approach caused fs issues in serverless)
-  const wb = XLSX.utils.book_new()
+async function generateComplianceExcel(processedDocs: ProcessedDocument[], projectName: string): Promise<Buffer> {
+  const path = require('path')
+  const fs = require('fs')
 
-  // Summary sheet
-  const summaryData = [
-    ['PROYECTO', projectName],
-    ['Fecha de Generación', new Date().toLocaleDateString('es-PE')],
-    ['Total Documentos Analizados', processedDocs.length],
-    ['Total Anotaciones Encontradas', processedDocs.reduce((sum, d) => sum + d.annotationCount, 0)],
-    [],
-    ['Documento', 'Tipo', 'Requerimientos Encontrados', 'Total Requerimientos'],
-    ...processedDocs.map(doc => [
-      doc.filename,
-      doc.documentType,
-      doc.annotationCount,
-      doc.annotations.length,
-    ]),
-  ]
-  const summaryWs = XLSX.utils.aoa_to_sheet(summaryData)
-  summaryWs['!cols'] = [{ wch: 60 }, { wch: 12 }, { wch: 25 }, { wch: 20 }]
-  XLSX.utils.book_append_sheet(wb, summaryWs, 'Resumen')
+  const templatePath = path.resolve(process.cwd(), 'docs', 'Compliance_Matrix_Template.xlsx')
+  const wb = new ExcelJS.Workbook()
 
-  // One sheet per document (matching template structure)
+  // Try to load template, fallback to creating from scratch
+  let templateSheet: ExcelJS.Worksheet | null = null
+  try {
+    if (fs.existsSync(templatePath)) {
+      await wb.xlsx.readFile(templatePath)
+      templateSheet = wb.worksheets[0]
+    }
+  } catch (err) {
+    console.warn('[generate-results] Failed to read template, creating from scratch:', err)
+  }
+
+  // If no template, create a basic workbook
+  if (!templateSheet) {
+    const ws = wb.addWorksheet('Template')
+    ws.getRow(1).values = [null, 'PARTIDAS:', null, 'Marca:']
+    ws.getRow(2).values = [null, 'DESCRIPCION:', null, 'Modelo:']
+    ws.getRow(3).values = [null, 'Item', 'Especificaciones tecnicas', 'Especificaciones tecnicas Fichas', 'Cumple', 'Pagina']
+    templateSheet = ws
+  }
+
+  // Create a sheet for each document with annotations
   for (const doc of processedDocs) {
     if (doc.annotations.length === 0) continue
 
     const sheetName = doc.filename
       .replace(/\.pdf$/i, '')
-      .replace(/[^\w\s\-áéíóúñÁÉÍÓÚÑ]/g, '')
+      .replace(/[^\w\s\-]/g, '')
       .substring(0, 31)
 
-    // Build rows matching template structure:
-    // Row 0: PARTIDAS: <code>  |  (empty)  |  Marca: <brand>
-    // Row 1: DESCRIPCIÓN: <desc>  |  (empty)  |  Modelo: <model>
-    // Row 2: Ítem | Especificaciones técnicas | Especificaciones técnicas Fichas | Cumple | Página
-    // Row 3+: data rows
-    const sheetData: (string | number | null)[][] = [
-      [`PARTIDAS: `, null, `Marca: `],
-      [`DESCRIPCIÓN: ${doc.filename}`, null, `Modelo: `],
-      ['Ítem', 'Especificaciones técnicas', 'Especificaciones técnicas Fichas', 'Cumple', 'Página'],
-      ...doc.annotations.map((ann, idx) => [
-        idx + 1,
-        ann.requirementId + ': ' + (ann.found ? ann.exactText || '' : '(no encontrado)').substring(0, 300),
-        ann.found ? (ann.exactText || '').substring(0, 300) : '',
-        ann.found ? 'SI' : 'NO',
-        ann.found && ann.pageNum ? `Pág. ${ann.pageNum}` : '',
-      ]),
-    ]
+    // Duplicate template sheet
+    const newSheet = wb.addWorksheet(sheetName)
 
-    const ws = XLSX.utils.aoa_to_sheet(sheetData)
-    ws['!cols'] = [
-      { wch: 6 },   // Ítem
-      { wch: 70 },  // Especificaciones técnicas
-      { wch: 70 },  // Especificaciones técnicas Fichas
-      { wch: 10 },  // Cumple
-      { wch: 15 },  // Página
-    ]
+    // Copy column widths from template
+    templateSheet.columns.forEach((col, idx) => {
+      if (col.width) {
+        newSheet.getColumn(idx + 1).width = col.width
+      }
+    })
 
-    XLSX.utils.book_append_sheet(wb, ws, sheetName)
+    // Copy first 3 rows (header structure) from template with styles
+    for (let r = 1; r <= 3; r++) {
+      const srcRow = templateSheet.getRow(r)
+      const destRow = newSheet.getRow(r)
+      destRow.height = srcRow.height
+      srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const destCell = destRow.getCell(colNumber)
+        destCell.style = { ...cell.style }
+        destCell.value = cell.value
+      })
+    }
+
+    // Copy merged cells from template (first 3 rows only)
+    const merges = (templateSheet as unknown as { _merges: Record<string, unknown> })._merges || {}
+    for (const mergeRef of Object.keys(merges)) {
+      try {
+        // Only copy merges in rows 1-3
+        const rowNum = parseInt(mergeRef.replace(/[A-Z]/g, ''))
+        if (rowNum <= 3) {
+          newSheet.mergeCells(mergeRef)
+        }
+      } catch { /* skip invalid merges */ }
+    }
+
+    // Fill header data
+    newSheet.getCell('B1').value = `PARTIDAS: ${doc.filename}`
+    newSheet.getCell('D1').value = 'Marca:'
+    newSheet.getCell('B2').value = `DESCRIPCION: ${doc.filename}`
+    newSheet.getCell('D2').value = 'Modelo:'
+
+    // Fill data rows (starting at row 4)
+    doc.annotations.forEach((ann, idx) => {
+      const row = newSheet.getRow(idx + 4)
+
+      // Copy style from template row 4 if available
+      const templateDataRow = templateSheet!.getRow(4)
+      templateDataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        const destCell = row.getCell(colNumber)
+        destCell.style = { ...cell.style }
+      })
+
+      row.getCell(2).value = idx + 1 // Item number
+      row.getCell(3).value = `${ann.requirementId}: ${ann.found ? (ann.exactText || '').substring(0, 500) : '(no encontrado)'}` // Spec requirement
+      row.getCell(4).value = ann.found ? (ann.exactText || '').substring(0, 500) : '' // Evidence from datasheet
+      row.getCell(5).value = ann.found ? 'SI' : 'NO' // Cumple
+      row.getCell(6).value = ann.found && ann.pageNum ? `Pag. ${ann.pageNum}` : '' // Page
+    })
   }
 
-  const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' })
+  // Remove the original template sheet (we only want the filled ones)
+  if (templateSheet && wb.worksheets.length > 1) {
+    wb.removeWorksheet(templateSheet.id)
+  }
+
+  // Add summary sheet (exceljs adds it at the end, which is fine)
+  const summary = wb.addWorksheet('Resumen', { properties: { tabColor: { argb: '4472C4' } } })
+
+  summary.getColumn(1).width = 60
+  summary.getColumn(2).width = 15
+  summary.getColumn(3).width = 25
+  summary.getColumn(4).width = 20
+
+  summary.getRow(1).values = ['Proyecto', projectName]
+  summary.getRow(1).font = { bold: true }
+  summary.getRow(2).values = ['Fecha de Generacion', new Date().toLocaleDateString('es-PE')]
+  summary.getRow(3).values = ['Total Documentos Analizados', processedDocs.length]
+  summary.getRow(4).values = ['Total Anotaciones Encontradas', processedDocs.reduce((sum, d) => sum + d.annotationCount, 0)]
+  summary.getRow(6).values = ['Documento', 'Tipo', 'Requerimientos Encontrados', 'Total Requerimientos']
+  summary.getRow(6).font = { bold: true }
+
+  processedDocs.forEach((doc, idx) => {
+    summary.getRow(7 + idx).values = [
+      doc.filename,
+      doc.documentType,
+      doc.annotationCount,
+      doc.annotations.length,
+    ]
+  })
+
+  const buffer = await wb.xlsx.writeBuffer()
   return Buffer.from(buffer)
 }
 
