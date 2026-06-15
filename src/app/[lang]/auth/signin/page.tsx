@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
@@ -10,6 +10,7 @@ const supabase = createSupabaseBrowserClient()
 export default function SignInPage() {
   const t = useTranslations('auth')
   const router = useRouter()
+  const { lang } = useParams<{ lang: string }>()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
@@ -155,6 +156,18 @@ export default function SignInPage() {
                 ? (mode === 'signin' ? t('signingIn') : t('creatingAccount'))
                 : (mode === 'signin' ? t('signIn') : t('createAccount'))}
             </button>
+
+            {mode === 'signin' && (
+              <p className="text-center text-sm mb-4">
+                <a
+                  href={`/${lang}/auth/forgot-password`}
+                  className="underline hover:opacity-70"
+                  style={{ color: 'var(--color-mute)' }}
+                >
+                  {t('forgotPasswordLink')}
+                </a>
+              </p>
+            )}
 
             <p className="text-center text-sm" style={{ color: 'var(--color-mute)' }}>
               {mode === 'signin' ? (
