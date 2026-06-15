@@ -27,10 +27,17 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   const messages = await getMessages()
 
+  // Get user role for navigation (non-blocking, defaults to 'user')
+  let userRole: 'admin' | 'user' = 'user'
+  try {
+    const { getUserRole } = await import('@/lib/roles')
+    userRole = await getUserRole()
+  } catch { /* not authenticated yet */ }
+
   return (
     <NextIntlClientProvider messages={messages}>
       <AccessibilitySkipLink />
-      <Navigation lang={lang} />
+      <Navigation lang={lang} isAdmin={userRole === 'admin'} />
       <div id="main-content" className="flex-1">
         {children}
       </div>

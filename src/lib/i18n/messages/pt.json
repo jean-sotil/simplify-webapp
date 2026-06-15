@@ -141,5 +141,19 @@
     "tryAgain": "Tentar novamente",
     "loadingDocuments": "Carregando documentos...",
     "noDocumentsUploaded": "Nenhum documento enviado ainda."
+      },
+  "admin": {
+    "title": "Admin",
+    "userManagement": "Gerenciamento de Usu\u00e1rios",
+    "subtitle": "Gerencie os papeis dos usu\u00e1rios. Administradores podem ver todos os projetos e documentos.",
+    "email": "Email",
+    "role": "Papel",
+    "joined": "Registro",
+    "actions": "A\u00e7\u00f5es",
+    "you": "(voc\u00ea)",
+    "makeAdmin": "Tornar admin",
+    "removeAdmin": "Remover admin",
+    "roleUpdated": "Papel atualizado com sucesso",
+    "nav": "Admin"
   }
 }

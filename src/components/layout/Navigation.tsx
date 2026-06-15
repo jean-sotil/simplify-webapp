@@ -9,9 +9,10 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 
 interface NavigationProps {
   lang: string
+  isAdmin?: boolean
 }
 
-export function Navigation({ lang }: NavigationProps) {
+export function Navigation({ lang, isAdmin = false }: NavigationProps) {
   const t = useTranslations('nav')
   const pathname = usePathname()
   const router = useRouter()
@@ -62,6 +63,19 @@ export function Navigation({ lang }: NavigationProps) {
               </Link>
             )
           })}
+          {isAdmin && (
+            <Link
+              href={`/${lang}/admin/users`}
+              className={[
+                'px-3 py-1.5 rounded-sm text-sm font-medium transition-colors',
+                pathname.startsWith(`/${lang}/admin`) ? 'bg-gray-100' : 'hover:bg-gray-50',
+              ].join(' ')}
+              style={{ color: pathname.startsWith(`/${lang}/admin`) ? 'var(--color-ink)' : 'var(--color-body)' }}
+              suppressHydrationWarning
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div className="hidden sm:flex items-center gap-3">

@@ -141,5 +141,19 @@
     "tryAgain": "Try again",
     "loadingDocuments": "Loading documents...",
     "noDocumentsUploaded": "No documents uploaded yet."
+  },
+  "admin": {
+    "title": "Admin",
+    "userManagement": "User Management",
+    "subtitle": "Manage user roles. Admins can see all projects and documents.",
+    "email": "Email",
+    "role": "Role",
+    "joined": "Joined",
+    "actions": "Actions",
+    "you": "(you)",
+    "makeAdmin": "Make admin",
+    "removeAdmin": "Remove admin",
+    "roleUpdated": "Role updated successfully",
+    "nav": "Admin"
   }
 }

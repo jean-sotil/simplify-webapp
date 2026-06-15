@@ -141,5 +141,19 @@
     "tryAgain": "Intentar de nuevo",
     "loadingDocuments": "Cargando documentos...",
     "noDocumentsUploaded": "No hay documentos subidos aún."
+      },
+  "admin": {
+    "title": "Admin",
+    "userManagement": "Gesti\u00f3n de Usuarios",
+    "subtitle": "Gestiona los roles de usuario. Los administradores pueden ver todos los proyectos y documentos.",
+    "email": "Correo",
+    "role": "Rol",
+    "joined": "Registro",
+    "actions": "Acciones",
+    "you": "(t\u00fa)",
+    "makeAdmin": "Hacer admin",
+    "removeAdmin": "Quitar admin",
+    "roleUpdated": "Rol actualizado exitosamente",
+    "nav": "Admin"
   }
 }
