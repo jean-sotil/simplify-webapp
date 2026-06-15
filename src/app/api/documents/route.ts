@@ -28,5 +28,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 
-  return NextResponse.json({ documents: data ?? [] })
+  // Deduplicate by filename: keep only the most recent upload per filename
+  // (data is already ordered by uploaded_at DESC, so first occurrence wins)
+  const seen = new Set<string>()
+  const deduplicated = (data ?? []).filter(doc => {
+    if (seen.has(doc.filename)) return false
+    seen.add(doc.filename)
+    return true
+  })
+
+  return NextResponse.json({ documents: deduplicated })
 }

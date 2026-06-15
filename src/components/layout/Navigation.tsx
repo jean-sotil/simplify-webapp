@@ -10,9 +10,10 @@ import { createSupabaseBrowserClient } from '@/lib/supabase/client'
 interface NavigationProps {
   lang: string
   isAdmin?: boolean
+  userEmail?: string | null
 }
 
-export function Navigation({ lang, isAdmin = false }: NavigationProps) {
+export function Navigation({ lang, isAdmin = false, userEmail = null }: NavigationProps) {
   const t = useTranslations('nav')
   const pathname = usePathname()
   const router = useRouter()
@@ -80,14 +81,25 @@ export function Navigation({ lang, isAdmin = false }: NavigationProps) {
 
         <div className="hidden sm:flex items-center gap-3">
           <LanguageSwitcher />
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="text-xs px-3 py-1.5 rounded-sm border transition-colors hover:bg-gray-50 cursor-pointer"
-            style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
-          >
-            {t('signOut')}
-          </button>
+          {userEmail && (
+            <>
+              <span
+                className="text-xs truncate max-w-[160px]"
+                style={{ color: 'var(--color-mute)' }}
+                title={userEmail}
+              >
+                {userEmail}
+              </span>
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-xs px-3 py-1.5 rounded-sm border transition-colors hover:bg-gray-50 cursor-pointer"
+                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
+              >
+                {t('signOut')}
+              </button>
+            </>
+          )}
         </div>
 
         <button
@@ -132,14 +144,16 @@ export function Navigation({ lang, isAdmin = false }: NavigationProps) {
             style={{ borderColor: 'var(--color-hairline)' }}
           >
             <LanguageSwitcher />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="text-xs cursor-pointer"
-              style={{ color: 'var(--color-mute)' }}
-            >
-              {t('signOut')}
-            </button>
+            {userEmail && (
+              <button
+                type="button"
+                onClick={handleSignOut}
+                className="text-xs cursor-pointer"
+                style={{ color: 'var(--color-mute)' }}
+              >
+                {t('signOut')}
+              </button>
+            )}
           </div>
         </nav>
       )}

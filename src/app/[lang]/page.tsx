@@ -37,8 +37,17 @@ export default async function DashboardPage({ params }: Props) {
   const t = await getTranslations('dashboard')
   const supabase = await createSupabaseServerClient()
 
+  // Check if user is admin
+  const { isAdmin } = await import('@/lib/roles')
+  const userIsAdmin = await isAdmin()
+
+  // Admin sees all projects; normal user sees only their own
+  const projectsQuery = userIsAdmin
+    ? supabase.from('projects').select('stage')
+    : supabase.from('projects').select('stage').eq('owner_id', user.id)
+
   const [projectsRes, documentsRes, analysisRes] = await Promise.all([
-    supabase.from('projects').select('stage').eq('owner_id', user.id),
+    projectsQuery,
     supabase.from('documents').select('id, document_type'),
     supabase.from('analysis_results').select('status').eq('status', 'completed'),
   ])

@@ -24,12 +24,15 @@ export default async function ProjectsPage({ params }: Props) {
   const t = await getTranslations('projects')
   const supabase = await createSupabaseServerClient()
 
-  // For POC: fetch projects where owner_id = user.id (team_id TBD after teams provisioning)
-  const { data: projects, error } = await supabase
-    .from('projects')
-    .select('id, name, description, stage, owner_id, updated_at, created_at')
-    .eq('owner_id', user.id)
-    .order('updated_at', { ascending: false })
+  // Admin sees all projects; normal user sees only their own
+  const { isAdmin } = await import('@/lib/roles')
+  const userIsAdmin = await isAdmin()
+
+  const query = userIsAdmin
+    ? supabase.from('projects').select('id, name, description, stage, owner_id, updated_at, created_at').order('updated_at', { ascending: false })
+    : supabase.from('projects').select('id, name, description, stage, owner_id, updated_at, created_at').eq('owner_id', user.id).order('updated_at', { ascending: false })
+
+  const { data: projects, error } = await query
 
   if (error) throw new Error(error.message)
 

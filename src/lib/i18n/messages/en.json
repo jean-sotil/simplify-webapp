@@ -74,7 +74,8 @@
     "uploadFiles": "Upload {count} file(s)",
     "uploading": "Uploading...",
     "clearDone": "Clear done",
-    "filterByName": "Filter documents by name..."
+    "filterByName": "Filter documents by name...",
+    "duplicateWarning": "If a file with the same name already exists, only the most recent version will be used for analysis."
   },
   "search": {
     "title": "Semantic Search",
@@ -172,5 +173,16 @@
     "removeAdmin": "Remove admin",
     "roleUpdated": "Role updated successfully",
     "nav": "Admin"
+  },
+  "documentDetail": {
+    "backToDocuments": "All documents",
+    "uploaded": "Uploaded",
+    "indexed": "Indexed",
+    "indexedYes": "Yes — ready for semantic search",
+    "indexedNo": "No",
+    "originalFile": "Original file",
+    "download": "Download",
+    "attachedToProjects": "Attached to projects",
+    "deleteDocument": "Delete document"
   }
 }

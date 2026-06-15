@@ -1,6 +1,7 @@
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
+import { getTranslations } from 'next-intl/server'
 import { deleteDocument } from '@/app/[lang]/documents/actions'
 
 interface Props {
@@ -23,6 +24,7 @@ export default async function DocumentDetailPage({ params }: Props) {
   const user = await getUser()
   if (!user) redirect(`/${lang}/auth/signin`)
 
+  const t = await getTranslations('documentDetail')
   const supabase = await createSupabaseServerClient()
 
   const { data: doc, error } = await supabase
@@ -51,7 +53,7 @@ export default async function DocumentDetailPage({ params }: Props) {
         className="text-sm hover:underline mb-4 inline-block"
         style={{ color: 'var(--color-mute)' }}
       >
-        ← All documents
+        ← {t('backToDocuments')}
       </a>
 
       <div className="mb-6">
@@ -77,9 +79,9 @@ export default async function DocumentDetailPage({ params }: Props) {
       >
         {(
           [
-            ['Uploaded', new Date(doc.uploaded_at).toLocaleString()],
-            ['Indexed', doc.embedding ? 'Yes — ready for semantic search' : 'No'],
-            ['Original file', doc.original_file_url],
+            [t('uploaded'), new Date(doc.uploaded_at).toLocaleString()],
+            [t('indexed'), doc.embedding ? t('indexedYes') : t('indexedNo')],
+            [t('originalFile'), doc.original_file_url],
           ] as [string, string][]
         ).map(([label, value]) => (
           <div key={label} className="flex px-4 py-3 gap-4">
@@ -90,14 +92,14 @@ export default async function DocumentDetailPage({ params }: Props) {
               {label}
             </dt>
             <dd className="text-sm break-all" style={{ color: 'var(--color-ink)' }}>
-              {label === 'Original file' ? (
+              {label === t('originalFile') ? (
                 <a
                   href={value}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline underline-offset-2"
                 >
-                  Download
+                  {t('download')}
                 </a>
               ) : (
                 value
@@ -114,7 +116,7 @@ export default async function DocumentDetailPage({ params }: Props) {
             className="text-xs font-medium uppercase tracking-[1.5px] mb-3"
             style={{ color: 'var(--color-mute)' }}
           >
-            Attached to projects
+            {t('attachedToProjects')}
           </h2>
           <ul className="space-y-2">
             {attachedProjects.map((p) => (
@@ -149,7 +151,7 @@ export default async function DocumentDetailPage({ params }: Props) {
           className="text-sm font-medium px-4 py-2 rounded-sm border transition-colors hover:bg-red-50"
           style={{ borderColor: 'var(--color-accent-red)', color: 'var(--color-accent-red)' }}
         >
-          Delete document
+          {t('deleteDocument')}
         </button>
       </form>
     </main>

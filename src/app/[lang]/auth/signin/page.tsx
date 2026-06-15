@@ -179,7 +179,7 @@ export default function SignInPage() {
                     className="underline hover:opacity-70"
                     style={{ color: 'var(--color-primary)' }}
                   >
-                    Create one
+                    {t('createOne')}
                   </button>
                 </>
               ) : (
@@ -191,7 +191,7 @@ export default function SignInPage() {
                     className="underline hover:opacity-70"
                     style={{ color: 'var(--color-primary)' }}
                   >
-                    Sign in
+                    {t('signInLink')}
                   </button>
                 </>
               )}

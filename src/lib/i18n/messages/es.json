@@ -74,7 +74,8 @@
     "uploadFiles": "Subir {count} archivo(s)",
     "uploading": "Subiendo...",
     "clearDone": "Limpiar completados",
-    "filterByName": "Filtrar documentos por nombre..."
+    "filterByName": "Filtrar documentos por nombre...",
+    "duplicateWarning": "Si existe un archivo con el mismo nombre, solo se usará la versión más reciente para el análisis."
   },
   "search": {
     "title": "Búsqueda Semántica",
@@ -172,5 +173,16 @@
     "removeAdmin": "Quitar admin",
     "roleUpdated": "Rol actualizado exitosamente",
     "nav": "Admin"
+  },
+  "documentDetail": {
+    "backToDocuments": "Todos los documentos",
+    "uploaded": "Subido",
+    "indexed": "Indexado",
+    "indexedYes": "Si — listo para busqueda semantica",
+    "indexedNo": "No",
+    "originalFile": "Archivo original",
+    "download": "Descargar",
+    "attachedToProjects": "Vinculado a proyectos",
+    "deleteDocument": "Eliminar documento"
   }
 }

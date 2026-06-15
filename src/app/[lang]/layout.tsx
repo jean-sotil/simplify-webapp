@@ -29,15 +29,19 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   // Get user role for navigation (non-blocking, defaults to 'user')
   let userRole: 'admin' | 'user' = 'user'
+  let userEmail: string | null = null
   try {
     const { getUserRole } = await import('@/lib/roles')
-    userRole = await getUserRole()
+    const { getUser } = await import('@/lib/auth')
+    const [role, user] = await Promise.all([getUserRole(), getUser()])
+    userRole = role
+    userEmail = user?.email ?? null
   } catch { /* not authenticated yet */ }
 
   return (
     <NextIntlClientProvider messages={messages}>
       <AccessibilitySkipLink />
-      <Navigation lang={lang} isAdmin={userRole === 'admin'} />
+      <Navigation lang={lang} isAdmin={userRole === 'admin'} userEmail={userEmail} />
       <div id="main-content" className="flex-1">
         {children}
       </div>
