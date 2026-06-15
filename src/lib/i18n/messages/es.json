@@ -182,6 +182,10 @@
     "indexedNo": "No",
     "originalFile": "Archivo original",
     "download": "Descargar",
+    "showPreview": "Ver PDF",
+    "hidePreview": "Ocultar vista previa",
+    "preview": "Vista previa",
+    "confirmDelete": "¿Estas seguro de que deseas eliminar este documento?",
     "attachedToProjects": "Vinculado a proyectos",
     "deleteDocument": "Eliminar documento"
   }

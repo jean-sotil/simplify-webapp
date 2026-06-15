@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getUser } from '@/lib/auth'
 import { redirect, notFound } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
-import { deleteDocument } from '@/app/[lang]/documents/actions'
+import { DocumentActions } from '@/components/documents/DocumentActions'
 
 interface Props {
   params: Promise<{ lang: string; id: string }>
@@ -53,7 +53,7 @@ export default async function DocumentDetailPage({ params }: Props) {
         className="text-sm hover:underline mb-4 inline-block"
         style={{ color: 'var(--color-mute)' }}
       >
-        ← {t('backToDocuments')}
+        &larr; {t('backToDocuments')}
       </a>
 
       <div className="mb-6">
@@ -73,42 +73,39 @@ export default async function DocumentDetailPage({ params }: Props) {
         </h1>
       </div>
 
+      {/* Metadata */}
       <dl
         className="border rounded-md divide-y mb-6"
         style={{ borderColor: 'var(--color-hairline)' }}
       >
-        {(
-          [
-            [t('uploaded'), new Date(doc.uploaded_at).toLocaleString()],
-            [t('indexed'), doc.embedding ? t('indexedYes') : t('indexedNo')],
-            [t('originalFile'), doc.original_file_url],
-          ] as [string, string][]
-        ).map(([label, value]) => (
-          <div key={label} className="flex px-4 py-3 gap-4">
-            <dt
-              className="text-xs font-medium w-28 shrink-0"
-              style={{ color: 'var(--color-mute)' }}
-            >
-              {label}
-            </dt>
-            <dd className="text-sm break-all" style={{ color: 'var(--color-ink)' }}>
-              {label === t('originalFile') ? (
-                <a
-                  href={value}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline underline-offset-2"
-                >
-                  {t('download')}
-                </a>
-              ) : (
-                value
-              )}
-            </dd>
-          </div>
-        ))}
+        <div className="flex px-4 py-3 gap-4">
+          <dt className="text-xs font-medium w-28 shrink-0" style={{ color: 'var(--color-mute)' }}>
+            {t('uploaded')}
+          </dt>
+          <dd className="text-sm" style={{ color: 'var(--color-ink)' }}>
+            {new Date(doc.uploaded_at).toLocaleString()}
+          </dd>
+        </div>
+        <div className="flex px-4 py-3 gap-4">
+          <dt className="text-xs font-medium w-28 shrink-0" style={{ color: 'var(--color-mute)' }}>
+            {t('indexed')}
+          </dt>
+          <dd className="text-sm" style={{ color: 'var(--color-ink)' }}>
+            {doc.embedding ? t('indexedYes') : t('indexedNo')}
+          </dd>
+        </div>
       </dl>
 
+      {/* Action buttons + PDF preview toggle */}
+      {doc.original_file_url && (
+        <DocumentActions
+          pdfUrl={doc.original_file_url}
+          documentId={doc.id}
+          lang={lang}
+        />
+      )}
+
+      {/* Attached projects */}
       {attachedProjects.length > 0 && (
         <section className="mb-6" aria-labelledby="projects-heading">
           <h2
@@ -136,24 +133,6 @@ export default async function DocumentDetailPage({ params }: Props) {
           </ul>
         </section>
       )}
-
-      <form
-        action={async () => {
-          'use server'
-          const result = await deleteDocument(id)
-          if (!('error' in result)) {
-            redirect(`/${lang}/documents`)
-          }
-        }}
-      >
-        <button
-          type="submit"
-          className="text-sm font-medium px-4 py-2 rounded-sm border transition-colors hover:bg-red-50"
-          style={{ borderColor: 'var(--color-accent-red)', color: 'var(--color-accent-red)' }}
-        >
-          {t('deleteDocument')}
-        </button>
-      </form>
     </main>
   )
 }

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { LanguageSwitcher } from '@/components/common/LanguageSwitcher'
 import { createSupabaseBrowserClient } from '@/lib/supabase/client'
@@ -16,7 +16,6 @@ interface NavigationProps {
 export function Navigation({ lang, isAdmin = false, userEmail = null }: NavigationProps) {
   const t = useTranslations('nav')
   const pathname = usePathname()
-  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const NAV_LINKS = [
@@ -27,7 +26,7 @@ export function Navigation({ lang, isAdmin = false, userEmail = null }: Navigati
   async function handleSignOut() {
     const supabase = createSupabaseBrowserClient()
     await supabase.auth.signOut()
-    router.push(`/${lang}/auth/signin`)
+    window.location.href = `/${lang}/auth/signin`
   }
 
   return (

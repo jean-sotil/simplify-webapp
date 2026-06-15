@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'url parameter is required' }, { status: 400 })
   }
 
+  const inline = request.nextUrl.searchParams.get('inline') === '1'
+
   // Only allow downloads from our blob store
   if (!url.includes('blob.vercel-storage.com')) {
     return NextResponse.json({ error: 'Invalid download URL' }, { status: 400 })
@@ -44,10 +46,14 @@ export async function GET(request: NextRequest) {
   const filename = decodeURIComponent(pathname.split('/').pop() || 'download')
 
   // Stream the response to the client
+  const disposition = inline
+    ? `inline; filename="${filename}"`
+    : `attachment; filename="${filename}"`
+
   return new NextResponse(response.body, {
     headers: {
       'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
-      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Disposition': disposition,
       'Content-Length': response.headers.get('content-length') || '',
     },
   })
