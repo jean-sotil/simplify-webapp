@@ -73,7 +73,8 @@
     "multipleSupported": "Multiple files supported - Max 50 MB each",
     "uploadFiles": "Upload {count} file(s)",
     "uploading": "Uploading...",
-    "clearDone": "Clear done"
+    "clearDone": "Clear done",
+    "filterByName": "Filter documents by name..."
   },
   "search": {
     "title": "Semantic Search",

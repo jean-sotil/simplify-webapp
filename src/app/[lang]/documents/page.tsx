@@ -4,6 +4,7 @@ import { getUser } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { getTranslations } from 'next-intl/server'
 import { DocumentUploader } from '@/components/documents/DocumentUploader'
+import { DocumentList } from '@/components/documents/DocumentList'
 
 // Allow server actions called from this page up to 300s (large PDF processing)
 export const maxDuration = 300
@@ -17,13 +18,6 @@ export async function generateMetadata(_props: { params: Promise<{ lang: string 
 
 interface Props {
   params: Promise<{ lang: string }>
-}
-
-const TYPE_LABELS: Record<string, string> = { ett: 'ETT', hardware: 'Hardware', software: 'Software' }
-const TYPE_COLORS: Record<string, string> = {
-  ett: 'bg-[var(--color-accent-blue)] text-white',
-  hardware: 'bg-[var(--color-accent-orange)] text-white',
-  software: 'bg-emerald-600 text-white',
 }
 
 export default async function DocumentsPage({ params }: Props) {
@@ -83,67 +77,10 @@ export default async function DocumentsPage({ params }: Props) {
           className="text-xs font-medium uppercase tracking-[1.5px] mb-4"
           style={{ color: 'var(--color-mute)' }}
         >
-          {t('allDocuments')} ({documents?.length ?? 0})
+          {t('allDocuments')}
         </h2>
 
-        {documents && documents.length > 0 ? (
-          <ul className="space-y-2">
-            {documents.map((doc) => (
-              <li key={doc.id}>
-                <a
-                  href={`/${lang}/documents/${doc.id}`}
-                  className="flex items-center justify-between border rounded-md px-4 py-3 hover:bg-gray-50 transition-colors"
-                  style={{ borderColor: 'var(--color-hairline)' }}
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span
-                      className={`shrink-0 text-xs font-medium px-2 py-1 rounded-sm ${TYPE_COLORS[doc.document_type] ?? 'bg-gray-100'}`}
-                    >
-                      {TYPE_LABELS[doc.document_type] ?? doc.document_type}
-                    </span>
-                    <span
-                      className="text-sm font-medium truncate"
-                      style={{ color: 'var(--color-ink)' }}
-                    >
-                      {doc.filename}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 shrink-0 ml-4">
-                    {doc.embedding ? (
-                      <span
-                        className="text-xs"
-                        style={{ color: 'var(--color-accent-green)' }}
-                        title="Indexed for semantic search"
-                      >
-                        ● {t('indexed')}
-                      </span>
-                    ) : (
-                      <span className="text-xs" style={{ color: 'var(--color-mute)' }}>
-                        ○ {t('notIndexed')}
-                      </span>
-                    )}
-                    <time
-                      className="text-xs"
-                      style={{ color: 'var(--color-mute)' }}
-                      dateTime={doc.uploaded_at}
-                    >
-                      {new Date(doc.uploaded_at).toLocaleDateString()}
-                    </time>
-                  </div>
-                </a>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <div
-            className="text-center py-12 border rounded-md"
-            style={{ borderColor: 'var(--color-hairline)' }}
-          >
-            <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-              {t('noDocuments')}
-            </p>
-          </div>
-        )}
+        <DocumentList documents={documents ?? []} lang={lang} />
       </section>
     </main>
   )

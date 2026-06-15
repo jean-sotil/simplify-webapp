@@ -73,7 +73,8 @@
     "multipleSupported": "Multiplos arquivos suportados - Max 50 MB cada",
     "uploadFiles": "Enviar {count} arquivo(s)",
     "uploading": "Enviando...",
-    "clearDone": "Limpar concluidos"
+    "clearDone": "Limpar concluidos",
+    "filterByName": "Filtrar documentos por nome..."
   },
   "search": {
     "title": "Busca Semantica",

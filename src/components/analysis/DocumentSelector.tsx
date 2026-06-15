@@ -157,12 +157,15 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
 
       {/* Search filter */}
       <input
+        id="filter-docs"
+        name="filter-docs"
         type="text"
         value={searchText}
         onChange={e => setSearchText(e.target.value)}
         placeholder={t('filterByName')}
         className="w-full border rounded-sm px-3 py-2 text-sm focus:outline-none mb-4"
         style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+        autoComplete="off"
       />
 
       {/* Document list */}
