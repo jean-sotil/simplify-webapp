@@ -67,25 +67,30 @@ export async function POST(request: NextRequest) {
   // Extract requirements from ETT document directly from DB
   // This bypasses any Server Action caching issues
   if (projectId) {
+    console.log(`[analyze] Attempting ETT extraction for project: ${projectId}`)
     try {
       // Get all documents attached to this project
-      const { data: projectDocs } = await supabaseAdmin
+      const { data: projectDocs, error: pdError } = await supabaseAdmin
         .from('project_documents')
         .select('document_id')
         .eq('project_id', projectId)
 
+      console.log(`[analyze] project_documents query: ${projectDocs?.length ?? 0} rows, error: ${pdError?.message ?? 'none'}`)
+
       if (projectDocs && projectDocs.length > 0) {
         const docIds = projectDocs.map(pd => pd.document_id)
-        const { data: ettDocs } = await supabaseAdmin
+        const { data: ettDocs, error: ettError } = await supabaseAdmin
           .from('documents')
           .select('id, extracted_text, document_type')
           .in('id', docIds)
           .eq('document_type', 'ett')
           .limit(1)
 
+        console.log(`[analyze] ETT query: ${ettDocs?.length ?? 0} docs found, error: ${ettError?.message ?? 'none'}, text length: ${ettDocs?.[0]?.extracted_text?.length ?? 0}`)
+
         if (ettDocs && ettDocs[0]?.extracted_text) {
           const allReqs = extractETTRequirements(ettDocs[0].extracted_text)
-          console.log(`[analyze] Extracted ${allReqs.length} requirements from ETT (DB, ${ettDocs[0].extracted_text.length} chars)`)
+          console.log(`[analyze] Extracted ${allReqs.length} requirements from ETT`)
 
           if (allReqs.length > 0) {
             const reqsForDocs = allReqs.map((r) => ({
@@ -97,14 +102,19 @@ export async function POST(request: NextRequest) {
             for (const doc of documents) {
               doc.matchedRequirements = reqsForDocs
             }
+            console.log(`[analyze] Assigned ${allReqs.length} requirements to ${documents.length} documents`)
           }
         } else {
-          console.log('[analyze] No ETT document found for project')
+          console.log('[analyze] No ETT document with extracted_text found')
         }
+      } else {
+        console.log('[analyze] No project_documents found for this project')
       }
     } catch (err) {
-      console.warn('[analyze] Failed to extract ETT requirements from DB:', err)
+      console.error('[analyze] ETT extraction FAILED:', err instanceof Error ? err.message : err, err instanceof Error ? err.stack : '')
     }
+  } else {
+    console.log('[analyze] No projectId provided, skipping ETT extraction')
   }
 
   // Helper to update processing stage in DB (accumulates as a log)
