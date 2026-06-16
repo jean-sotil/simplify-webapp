@@ -117,6 +117,7 @@
     "documentsCount": "Documents",
     "annotationsFound": "Annotations found",
     "downloadResults": "Download results (ZIP)",
+    "rerunAnalysis": "Re-run analysis",
     "noAnalysis": "No analysis has been run yet. Select documents and click Run Analysis.",
     "triggered": "Analysis running. See progress on the left panel.",
     "triggering": "Running analysis (this may take a few minutes)...",

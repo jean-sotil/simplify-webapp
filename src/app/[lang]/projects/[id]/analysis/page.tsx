@@ -113,7 +113,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           </a>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className={`grid grid-cols-1 ${analysis?.status === 'processing' ? '' : 'lg:grid-cols-2'} gap-8`}>
           <section aria-labelledby="results-label">
             <h2
               id="results-label"
@@ -125,6 +125,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
             <AnalysisResults result={analysis as AnalysisResultData | null} />
           </section>
 
+          {analysis?.status !== 'processing' && (
           <section aria-labelledby="selector-label">
             <h2
               id="selector-label"
@@ -142,6 +143,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
               }}
             />
           </section>
+          )}
         </div>
       )}
     </main>

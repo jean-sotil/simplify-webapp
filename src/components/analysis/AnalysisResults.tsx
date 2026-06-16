@@ -211,6 +211,15 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
           {t('downloadResults')}
         </a>
       )}
+
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium border transition-colors hover:bg-gray-50 ml-3"
+        style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+      >
+        {t('rerunAnalysis')}
+      </button>
     </div>
   )
 }

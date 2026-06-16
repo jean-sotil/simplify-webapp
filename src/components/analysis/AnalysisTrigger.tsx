@@ -47,20 +47,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
   }
 
   if (triggered) {
-    return (
-      <div
-        className="border rounded-md p-6 text-center"
-        style={{ borderColor: 'var(--color-accent-blue)', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
-      >
-        <div className="inline-block animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full mb-3" style={{ color: 'var(--color-accent-blue)' }} />
-        <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
-          {t('inProgress')}
-        </p>
-        <p className="text-xs mt-1" style={{ color: 'var(--color-mute)' }}>
-          {t('polling')}
-        </p>
-      </div>
-    )
+    return null // Panel disappears, progress shows in the results section
   }
 
   return (

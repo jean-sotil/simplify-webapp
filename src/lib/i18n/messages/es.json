@@ -117,6 +117,7 @@
     "documentsCount": "Documentos",
     "annotationsFound": "Anotaciones encontradas",
     "downloadResults": "Descargar resultados (ZIP)",
+    "rerunAnalysis": "Re-ejecutar analisis",
     "noAnalysis": "No se ha ejecutado ningún análisis. Selecciona documentos y haz clic en Ejecutar Análisis.",
     "triggered": "Análisis en ejecución. Ve el progreso en el panel izquierdo.",
     "triggering": "Ejecutando análisis (puede tomar unos minutos)...",
