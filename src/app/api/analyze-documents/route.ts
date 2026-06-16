@@ -30,6 +30,7 @@ interface ProcessedDocument {
   documentId: string
   filename: string
   documentType: string
+  originalFileUrl?: string
   annotations: AnnotationResult[]
   annotationCount: number
 }
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
   }
 
   console.log(`[analyze] Received: ${documents.length} docs, projectId=${projectId || 'NONE'}, analysisId=${analysisId?.substring(0,8) || 'NONE'}`)
+  console.log(`[analyze] Doc URLs: ${documents.map(d => d.originalFileUrl ? 'YES' : 'NO').join(', ')}`)
 
   // Extract requirements from ETT document directly from DB
   // This bypasses any Server Action caching issues
@@ -374,7 +376,9 @@ const ETT_NOISE = [
 const ETT_PARTIDA = /^(\d{2}\.\d{2}(?:\.\d{2}){0,2})\s+(.+)/
 
 function extractETTRequirements(rawText: string): Array<{ requirementId: string; text: string }> {
-  const lines = rawText.split('\n')
+  // Normalize text first: split long lines on spec-start boundaries
+  const normalized = normalizeETTText(rawText)
+  const lines = normalized.split('\n')
   const requirements: Array<{ requirementId: string; text: string }> = []
   let currentReqLines: string[] = []
   let inTargetSection = false
@@ -400,8 +404,6 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
     const partidaMatch = trimmed.match(ETT_PARTIDA)
     if (partidaMatch) {
       flush()
-      // currentPartida tracks section context (used for debugging)
-      void partidaMatch[2]
       inTargetSection = partidaMatch[1].startsWith('06.11')
       continue
     }
@@ -409,10 +411,10 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
     if (!inTargetSection) continue
 
     // Bullet-prefixed lines
-    if (/^\s*[•\-○●]\s+|^\s*o\s{2,}|^\s*\d+[.)]\s+/.test(trimmed)) {
+    if (/^\s*[•\-]\s+|^\s*o\s{2,}|^\s*\d+[.)]\s+/.test(trimmed)) {
       flush()
       const cleaned = trimmed
-        .replace(/^\s*[•\-○●]\s+/, '')
+        .replace(/^\s*[•\-]\s+/, '')
         .replace(/^\s*o\s{2,}/, '')
         .replace(/^\s*\d+[.)]\s+/, '')
       currentReqLines.push(cleaned)
@@ -428,11 +430,46 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
 
     // Continuation
     if (currentReqLines.length > 0 && trimmed.length < 250) {
-      if (/^[A-ZÁÉÍÓÚÑ]{4,}(\s+[A-ZÁÉÍÓÚÑ]+)*$/.test(trimmed)) { flush(); continue }
+      if (/^[A-Z\u00C0-\u00DC]{4,}(\s+[A-Z\u00C0-\u00DC]+)*$/.test(trimmed)) { flush(); continue }
       currentReqLines.push(trimmed)
     }
   }
 
   flush()
   return requirements
+}
+
+function normalizeETTText(text: string): string {
+  let r = text.replace(/--- Page \d+ ---/g, '\n')
+
+  // Split before partida numbers
+  r = r.replace(/(\s)(\d{2}\.\d{2}\.\d{2}\.\d{2}\s)/g, '\n$2')
+  r = r.replace(/(\s)(\d{2}\.\d{2}\.\d{2}\s)/g, '\n$2')
+  r = r.replace(/(\s)(\d{2}\.\d{2}\s)/g, '\n$2')
+
+  // Split before spec-start keywords when preceded by period+space or double-space
+  const splitKeywords = [
+    'Debe ', 'Incluir ', 'Incluye ', 'Puerto ', 'Procesador ', 'Frecuencia ',
+    'Memoria ', 'Almacenamiento ', 'Arquitectura ', 'Tarjeta ', 'Sistema ',
+    'Unidad ', 'El controlador ', 'El sistema ', 'Los controladores ',
+    'La identificaci', 'Reporte de ', 'Informe de ', 'Reportes ',
+    'Alarma ', 'Las alarmas ', 'Soporta ', 'Voltaje ', 'Protecci',
+    'Temperatura ', 'Humedad ', 'Algoritmo ', 'Certificaci', 'Listado por ',
+    'Material:', 'Licencia ', 'Autenticaci',
+  ]
+
+  for (const kw of splitKeywords) {
+    const esc = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // Split after period/exclamation/question + space + keyword
+    r = r.replace(new RegExp(`([.!?])\\s+(${esc})`, 'g'), '$1\n$2')
+    // Split after double-space + keyword
+    r = r.replace(new RegExp(`(\\s{2,})(${esc})`, 'g'), '\n$2')
+    // Split after single space + keyword (common in DB text)
+    r = r.replace(new RegExp(`(\\S)\\s(${esc})`, 'g'), '$1\n$2')
+  }
+
+  // Split on bullet patterns
+  r = r.replace(/\s+(o\s{2,})/g, '\n$1')
+
+  return r
 }
