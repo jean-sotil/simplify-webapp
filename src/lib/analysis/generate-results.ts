@@ -10,6 +10,9 @@ interface AnnotationResult {
   pageNum: number | null
   exactText: string | null
   confidence: number
+  partida?: string
+  partidaDesc?: string
+  requirementText?: string
 }
 
 interface ProcessedDocument {
@@ -80,133 +83,166 @@ export async function generateAnalysisResults(input: GenerateResultsInput): Prom
 }
 
 /**
- * Generates the Compliance Matrix Excel by cloning the template sheet for each document.
- * Preserves all formatting, styles, and merged cells from the original template.
+ * Generates the Compliance Matrix Excel grouped by PARTIDA (ETT section).
+ * Each sheet represents a partida (e.g., 06.11.01.01 - Estación de trabajo)
+ * and shows only the requirements belonging to that partida with their
+ * compliance status across the matched hardware documents.
+ * Uses the template styles from Compliance_Matrix_Template.xlsx.
  */
 async function generateComplianceExcel(processedDocs: ProcessedDocument[], projectName: string): Promise<Buffer> {
-  const path = require('path')
-  const fs = require('fs')
-
-  const templatePath = path.resolve(process.cwd(), 'docs', 'Compliance_Matrix_Template.xlsx')
   const wb = new ExcelJS.Workbook()
 
-  // Try to load template, fallback to creating from scratch
-  let templateSheet: ExcelJS.Worksheet | null = null
-  try {
-    if (fs.existsSync(templatePath)) {
-      await wb.xlsx.readFile(templatePath)
-      templateSheet = wb.worksheets[0]
-    }
-  } catch (err) {
-    console.warn('[generate-results] Failed to read template, creating from scratch:', err)
-  }
+  // Style definitions matching the template
+  const headerFill: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDADADA' }, bgColor: { argb: 'FFDADADA' } }
+  const headerFont: Partial<ExcelJS.Font> = { bold: true, size: 10, color: { argb: 'FF000000' }, name: 'Calibri' }
+  const dataFont: Partial<ExcelJS.Font> = { size: 10, color: { argb: 'FF000000' }, name: 'Calibri' }
+  const colWidths = [0.89, 5.33, 68.11, 57.89, 7, 22]
 
-  // If no template, create a basic workbook
-  if (!templateSheet) {
-    const ws = wb.addWorksheet('Template')
-    ws.getRow(1).values = [null, 'PARTIDAS:', null, 'Marca:']
-    ws.getRow(2).values = [null, 'DESCRIPCION:', null, 'Modelo:']
-    ws.getRow(3).values = [null, 'Item', 'Especificaciones tecnicas', 'Especificaciones tecnicas Fichas', 'Cumple', 'Pagina']
-    templateSheet = ws
-  }
-
-  // Create a sheet for each document with annotations
+  // Collect all annotations from all documents with their partida info
+  const allAnnotations: Array<AnnotationResult & { docFilename: string }> = []
   for (const doc of processedDocs) {
-    if (doc.annotations.length === 0) continue
+    for (const ann of doc.annotations) {
+      allAnnotations.push({ ...ann, docFilename: doc.filename })
+    }
+  }
 
-    const sheetName = doc.filename
-      .replace(/\.pdf$/i, '')
-      .replace(/[^\w\s\-]/g, '')
-      .substring(0, 31)
+  // Group annotations by partida
+  const partidaMap = new Map<string, {
+    partidaCode: string
+    partidaDesc: string
+    requirements: Array<{
+      requirementId: string
+      requirementText: string
+      results: Array<{ docFilename: string; found: boolean; exactText: string | null; pageNum: number | null }>
+    }>
+  }>()
 
-    // Duplicate template sheet
-    const newSheet = wb.addWorksheet(sheetName)
+  for (const ann of allAnnotations) {
+    const code = ann.partida || 'unknown'
+    const desc = ann.partidaDesc || ''
 
-    // Copy column widths from template
-    templateSheet.columns.forEach((col, idx) => {
-      if (col.width) {
-        newSheet.getColumn(idx + 1).width = col.width
+    if (!partidaMap.has(code)) {
+      partidaMap.set(code, { partidaCode: code, partidaDesc: desc, requirements: [] })
+    }
+
+    const partida = partidaMap.get(code)!
+    let reqEntry = partida.requirements.find(r => r.requirementId === ann.requirementId)
+    if (!reqEntry) {
+      reqEntry = { requirementId: ann.requirementId, requirementText: ann.requirementText || '', results: [] }
+      partida.requirements.push(reqEntry)
+    }
+
+    reqEntry.results.push({
+      docFilename: ann.docFilename,
+      found: ann.found,
+      exactText: ann.exactText,
+      pageNum: ann.pageNum,
+    })
+  }
+
+  // Helper to clean text (remove newlines, fix encoding)
+  function cleanText(text: string | null | undefined): string {
+    if (!text) return ''
+    return text.replace(/\n/g, ' ').replace(/\r/g, '').replace(/\s+/g, ' ').trim()
+  }
+
+  // Create one sheet per partida
+  for (const [code, partida] of partidaMap) {
+    if (code === 'unknown') continue
+
+    const sheetName = code.substring(0, 31)
+    const ws = wb.addWorksheet(sheetName)
+
+    // Column widths from template
+    colWidths.forEach((w, i) => { ws.getColumn(i + 1).width = w })
+
+    // Determine which documents matched requirements in this partida
+    const matchedDocs = new Set<string>()
+    for (const req of partida.requirements) {
+      for (const r of req.results) {
+        if (r.found) matchedDocs.add(r.docFilename)
+      }
+    }
+    const docsStr = [...matchedDocs].map(f => f.replace(/\.pdf$/i, '')).join(' / ')
+
+    // Row 1: PARTIDAS + Marca
+    const row1 = ws.getRow(1)
+    row1.height = 15.75
+    row1.getCell(2).value = `PARTIDAS: ${code}`
+    row1.getCell(2).font = headerFont
+    row1.getCell(2).fill = headerFill
+    row1.getCell(4).value = `Marca:`
+    row1.getCell(4).font = headerFont
+    row1.getCell(4).fill = headerFill
+
+    // Row 2: DESCRIPCION + Modelo
+    const row2 = ws.getRow(2)
+    row2.height = 27.6
+    row2.getCell(2).value = `DESCRIPCION: ${cleanText(partida.partidaDesc)}`
+    row2.getCell(2).font = headerFont
+    row2.getCell(2).fill = headerFill
+    row2.getCell(4).value = `Modelo: ${docsStr}`
+    row2.getCell(4).font = headerFont
+    row2.getCell(4).fill = headerFill
+
+    // Row 3: Column headers
+    const row3 = ws.getRow(3)
+    row3.height = 14.4
+    const headers = [null, 'Item', 'Especificaciones tecnicas', 'Especificaciones tecnicas Fichas', 'Cumple', 'Pagina']
+    headers.forEach((h, i) => {
+      if (h) {
+        const cell = row3.getCell(i + 1)
+        cell.value = h
+        cell.font = headerFont
+        cell.fill = headerFill
       }
     })
 
-    // Copy first 3 rows (header structure) from template with styles
-    for (let r = 1; r <= 3; r++) {
-      const srcRow = templateSheet.getRow(r)
-      const destRow = newSheet.getRow(r)
-      destRow.height = srcRow.height
-      srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        const destCell = destRow.getCell(colNumber)
-        destCell.style = { ...cell.style }
-        destCell.value = cell.value
-      })
-    }
+    // Data rows
+    partida.requirements.forEach((req, idx) => {
+      const row = ws.getRow(idx + 4)
+      const bestResult = req.results.find(r => r.found) || req.results[0]
+      const found = bestResult?.found ?? false
 
-    // Copy merged cells from template (first 3 rows only)
-    const merges = (templateSheet as unknown as { _merges: Record<string, unknown> })._merges || {}
-    for (const mergeRef of Object.keys(merges)) {
-      try {
-        // Only copy merges in rows 1-3
-        const rowNum = parseInt(mergeRef.replace(/[A-Z]/g, ''))
-        if (rowNum <= 3) {
-          newSheet.mergeCells(mergeRef)
-        }
-      } catch { /* skip invalid merges */ }
-    }
-
-    // Fill header data
-    newSheet.getCell('B1').value = `PARTIDAS: ${doc.filename}`
-    newSheet.getCell('D1').value = 'Marca:'
-    newSheet.getCell('B2').value = `DESCRIPCION: ${doc.filename}`
-    newSheet.getCell('D2').value = 'Modelo:'
-
-    // Fill data rows (starting at row 4)
-    doc.annotations.forEach((ann, idx) => {
-      const row = newSheet.getRow(idx + 4)
-
-      // Copy style from template row 4 if available
-      const templateDataRow = templateSheet!.getRow(4)
-      templateDataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
-        const destCell = row.getCell(colNumber)
-        destCell.style = { ...cell.style }
-      })
-
-      row.getCell(2).value = idx + 1 // Item number
-      row.getCell(3).value = `${ann.requirementId}: ${ann.found ? (ann.exactText || '').substring(0, 500) : '(no encontrado)'}` // Spec requirement
-      row.getCell(4).value = ann.found ? (ann.exactText || '').substring(0, 500) : '' // Evidence from datasheet
-      row.getCell(5).value = ann.found ? 'SI' : 'NO' // Cumple
-      row.getCell(6).value = ann.found && ann.pageNum ? `Pag. ${ann.pageNum}` : '' // Page
+      row.getCell(2).value = idx + 1
+      row.getCell(2).font = dataFont
+      row.getCell(3).value = cleanText(req.requirementText)
+      row.getCell(3).font = dataFont
+      row.getCell(3).alignment = { wrapText: true, vertical: 'top' }
+      row.getCell(4).value = found ? cleanText(bestResult?.exactText) : ''
+      row.getCell(4).font = dataFont
+      row.getCell(4).alignment = { wrapText: true, vertical: 'top' }
+      row.getCell(5).value = found ? 'SI' : 'NO'
+      row.getCell(5).font = { ...dataFont, color: { argb: found ? 'FF008000' : 'FFCC0000' }, bold: true }
+      row.getCell(6).value = found && bestResult?.pageNum ? `Pag. ${bestResult.pageNum}` : ''
+      row.getCell(6).font = dataFont
     })
   }
 
-  // Remove the original template sheet (we only want the filled ones)
-  if (templateSheet && wb.worksheets.length > 1) {
-    wb.removeWorksheet(templateSheet.id)
-  }
-
-  // Add summary sheet (exceljs adds it at the end, which is fine)
+  // Summary sheet
   const summary = wb.addWorksheet('Resumen', { properties: { tabColor: { argb: '4472C4' } } })
-
   summary.getColumn(1).width = 60
-  summary.getColumn(2).width = 15
-  summary.getColumn(3).width = 25
-  summary.getColumn(4).width = 20
+  summary.getColumn(2).width = 30
+  summary.getColumn(3).width = 15
+  summary.getColumn(4).width = 15
 
   summary.getRow(1).values = ['Proyecto', projectName]
   summary.getRow(1).font = { bold: true }
   summary.getRow(2).values = ['Fecha de Generacion', new Date().toLocaleDateString('es-PE')]
   summary.getRow(3).values = ['Total Documentos Analizados', processedDocs.length]
-  summary.getRow(4).values = ['Total Anotaciones Encontradas', processedDocs.reduce((sum, d) => sum + d.annotationCount, 0)]
-  summary.getRow(6).values = ['Documento', 'Tipo', 'Requerimientos Encontrados', 'Total Requerimientos']
-  summary.getRow(6).font = { bold: true }
+  summary.getRow(4).values = ['Total Requerimientos Encontrados', allAnnotations.filter(a => a.found).length]
+  summary.getRow(5).values = ['Total Requerimientos', new Set(allAnnotations.map(a => a.requirementId)).size]
 
-  processedDocs.forEach((doc, idx) => {
-    summary.getRow(7 + idx).values = [
-      doc.filename,
-      doc.documentType,
-      doc.annotationCount,
-      doc.annotations.length,
-    ]
-  })
+  summary.getRow(7).values = ['Partida', 'Descripcion', 'Cumple', 'Total Reqs']
+  summary.getRow(7).font = { bold: true }
+
+  let summaryRow = 8
+  for (const [code, partida] of partidaMap) {
+    if (code === 'unknown') continue
+    const found = partida.requirements.filter(r => r.results.some(res => res.found)).length
+    summary.getRow(summaryRow).values = [code, cleanText(partida.partidaDesc), `${found}/${partida.requirements.length}`, partida.requirements.length]
+    summaryRow++
+  }
 
   const buffer = await wb.xlsx.writeBuffer()
   return Buffer.from(buffer)
@@ -250,7 +286,7 @@ export async function annotatePdf(
     const pdfBuffer = Buffer.from(pdfBytes)
 
     // Step 1: Use pdfjs-dist to extract text positions
-    const pdfjsLib = eval('require')('pdfjs-dist/pdf.mjs')
+    const pdfjsLib = await import('pdfjs-dist')
     const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer), verbosity: 0 }).promise
 
     // Build text positions map for needed pages

@@ -13,6 +13,8 @@ interface DocumentInput {
   matchedRequirements: Array<{
     requirementId: string
     text: string
+    partida?: string
+    partidaDesc?: string
     pageNumber?: number | null
     similarityScore?: number
   }>
@@ -24,6 +26,9 @@ interface AnnotationResult {
   pageNum: number | null
   exactText: string | null
   confidence: number
+  partida?: string
+  partidaDesc?: string
+  requirementText?: string
 }
 
 interface ProcessedDocument {
@@ -98,6 +103,8 @@ export async function POST(request: NextRequest) {
             const reqsForDocs = allReqs.map((r) => ({
               requirementId: r.requirementId,
               text: r.text,
+              partida: r.partida,
+              partidaDesc: r.partidaDesc,
               pageNumber: null as number | null,
               similarityScore: 0,
             }))
@@ -211,6 +218,9 @@ export async function POST(request: NextRequest) {
           pageNum: match.pageNum,
           exactText: match.exactText,
           confidence: 0.9,
+          partida: req.partida,
+          partidaDesc: req.partidaDesc,
+          requirementText: req.text,
         })
       } else {
         unmatchedReqs.push(req)
@@ -258,6 +268,7 @@ Respond in JSON ONLY:
           body: JSON.stringify({
             model: 'openai/gpt-4o',
             temperature: 0,
+            seed: 42,
             response_format: { type: 'json_object' },
             messages: [
               { role: 'system', content: systemPrompt },
@@ -284,7 +295,11 @@ Respond in JSON ONLY:
         const annotations = parsed.annotations || []
         const foundCount = annotations.filter(a => a.found).length
         console.log(`[analyze] ${docLabel} — LLM done: ${foundCount}/${annotations.length} requirements found`)
-        llmAnnotations = annotations
+        // Enrich LLM annotations with partida info from the original requirements
+        llmAnnotations = annotations.map(ann => {
+          const origReq = unmatchedReqs.find(r => r.requirementId === ann.requirementId)
+          return { ...ann, partida: origReq?.partida, partidaDesc: origReq?.partidaDesc, requirementText: origReq?.text }
+        })
       } catch (err) {
         console.error(`[analyze] ${docLabel} — LLM FAILED:`, err instanceof Error ? err.message : err)
         llmAnnotations = unmatchedReqs.map(r => ({
@@ -292,9 +307,12 @@ Respond in JSON ONLY:
           found: false,
           pageNum: null,
           exactText: null,
-        confidence: 0,
-      }))
-    }
+          confidence: 0,
+          partida: r.partida,
+          partidaDesc: r.partidaDesc,
+          requirementText: r.text,
+        }))
+      }
     } // end if unmatchedReqs.length > 0
 
     // Merge direct matches + LLM results
@@ -410,14 +428,16 @@ const ETT_NOISE = [
 
 const ETT_PARTIDA = /^(\d{2}\.\d{2}(?:\.\d{2}){0,2})\s+(.+)/
 
-function extractETTRequirements(rawText: string): Array<{ requirementId: string; text: string }> {
+function extractETTRequirements(rawText: string): Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> {
   // Normalize text first: split long lines on spec-start boundaries
   const normalized = normalizeETTText(rawText)
   const lines = normalized.split('\n')
-  const requirements: Array<{ requirementId: string; text: string }> = []
+  const requirements: Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> = []
   let currentReqLines: string[] = []
   let inTargetSection = false
   let reqCounter = 0
+  let currentPartida = ''
+  let currentPartidaDesc = ''
 
   function flush() {
     if (currentReqLines.length === 0) return
@@ -427,6 +447,8 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
     requirements.push({
       requirementId: `REQ-${String(reqCounter).padStart(3, '0')}`,
       text,
+      partida: currentPartida,
+      partidaDesc: currentPartidaDesc,
     })
     currentReqLines = []
   }
@@ -440,6 +462,10 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
     if (partidaMatch) {
       flush()
       inTargetSection = partidaMatch[1].startsWith('06.11')
+      if (inTargetSection) {
+        currentPartida = partidaMatch[1]
+        currentPartidaDesc = partidaMatch[2].trim()
+      }
       continue
     }
 
