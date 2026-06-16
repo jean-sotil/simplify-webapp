@@ -250,7 +250,7 @@ export async function annotatePdf(
     const pdfBuffer = Buffer.from(pdfBytes)
 
     // Step 1: Use pdfjs-dist to extract text positions
-    const pdfjsLib = eval('require')('pdfjs-dist/legacy/build/pdf.mjs')
+    const pdfjsLib = eval('require')('pdfjs-dist/pdf.mjs')
     const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer), verbosity: 0 }).promise
 
     // Build text positions map for needed pages

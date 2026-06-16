@@ -38,8 +38,13 @@ export default async function DashboardPage({ params }: Props) {
   const supabase = await createSupabaseServerClient()
 
   // Check if user is admin
-  const { isAdmin } = await import('@/lib/roles')
-  const userIsAdmin = await isAdmin()
+  let userIsAdmin = false
+  try {
+    const { isAdmin } = await import('@/lib/roles')
+    userIsAdmin = await isAdmin()
+  } catch {
+    // If roles check fails, default to normal user
+  }
 
   // Admin sees all projects; normal user sees only their own
   const projectsQuery = userIsAdmin

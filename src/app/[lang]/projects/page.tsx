@@ -25,8 +25,11 @@ export default async function ProjectsPage({ params }: Props) {
   const supabase = await createSupabaseServerClient()
 
   // Admin sees all projects; normal user sees only their own
-  const { isAdmin } = await import('@/lib/roles')
-  const userIsAdmin = await isAdmin()
+  let userIsAdmin = false
+  try {
+    const { isAdmin } = await import('@/lib/roles')
+    userIsAdmin = await isAdmin()
+  } catch {}
 
   const query = userIsAdmin
     ? supabase.from('projects').select('id, name, description, stage, owner_id, updated_at, created_at').order('updated_at', { ascending: false })
