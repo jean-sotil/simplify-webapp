@@ -69,6 +69,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
       <DocumentSelector
         ettDocument={ettDocument}
         onRunAnalysis={handleRunAnalysis}
+        disabled={isPending || triggered}
       />
     </div>
   )

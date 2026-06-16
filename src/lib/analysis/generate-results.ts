@@ -46,7 +46,7 @@ export async function generateAnalysisResults(input: GenerateResultsInput): Prom
 
   // 1. Generate annotated PDFs for docs that have found annotations
   for (const doc of processedDocs) {
-    const foundAnnotations = doc.annotations.filter(a => a.found && a.pageNum)
+    const foundAnnotations = doc.annotations.filter(a => a.found)
     if (foundAnnotations.length === 0 || !doc.originalFileUrl) continue
 
     await log(`Annotating PDF: ${doc.filename} (${foundAnnotations.length} highlights)`)
@@ -237,7 +237,7 @@ export async function annotatePdf(
   annotations: AnnotationResult[],
   blobToken: string
 ): Promise<Buffer | null> {
-  const foundAnnotations = annotations.filter(a => a.found && a.pageNum)
+  const foundAnnotations = annotations.filter(a => a.found)
   if (foundAnnotations.length === 0) return null
 
   try {
@@ -249,114 +249,102 @@ export async function annotatePdf(
     const pdfBytes = await response.arrayBuffer()
     const pdfBuffer = Buffer.from(pdfBytes)
 
-    // Step 1: Use pdfjs-dist to extract text positions from the PDF
-    // Dynamic require to avoid Turbopack bundling the 'canvas' optional dep
-    const pdfjsLib = eval('require')('pdfjs-dist/legacy/build/pdf.js')
+    // Step 1: Use pdfjs-dist to extract text positions
+    const pdfjsLib = eval('require')('pdfjs-dist/legacy/build/pdf.mjs')
     const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer), verbosity: 0 }).promise
 
-    // Build a map: pageNumber -> array of { text, x, y, width, height }
+    // Build text positions map for needed pages
     const textPositionsByPage = new Map<number, Array<{ str: string; x: number; y: number; width: number; height: number }>>()
+    const neededPages = new Set(foundAnnotations.map(a => a.pageNum || 1))
 
-    // Only extract text for pages we need
-    const neededPages = new Set(foundAnnotations.map(a => a.pageNum!))
     for (const pageNum of neededPages) {
+      if (pageNum < 1 || pageNum > pdfjsDoc.numPages) continue
       const page = await pdfjsDoc.getPage(pageNum)
       const textContent = await page.getTextContent()
-
       const items: Array<{ str: string; x: number; y: number; width: number; height: number }> = []
+
       for (const item of textContent.items) {
         if (!('str' in item) || !item.str.trim()) continue
-        // transform: [scaleX, skewX, skewY, scaleY, translateX, translateY]
         const tx = item.transform[4]
         const ty = item.transform[5]
         const fontSize = Math.abs(item.transform[3]) || Math.abs(item.transform[0])
-        const width = item.width
-        const height = fontSize
-
-        items.push({
-          str: item.str,
-          x: tx,
-          y: ty,
-          width: width,
-          height: height,
-        })
+        items.push({ str: item.str, x: tx, y: ty, width: item.width, height: fontSize })
       }
       textPositionsByPage.set(pageNum, items)
     }
-
     await pdfjsDoc.destroy()
 
-    // Step 2: Use pdf-lib to draw highlight rectangles
+    // Step 2: Use pdf-lib to draw highlights
     const pdfDoc = await PDFDocument.load(pdfBytes)
     const pages = pdfDoc.getPages()
 
-    // Track vertical offset per page for stacking margin notes
-    const marginNoteOffset = new Map<number, number>()
+    // Group annotations by page
+    const annotationsByPage = new Map<number, AnnotationResult[]>()
+    for (const ann of foundAnnotations) {
+      const p = ann.pageNum || 1
+      if (!annotationsByPage.has(p)) annotationsByPage.set(p, [])
+      annotationsByPage.get(p)!.push(ann)
+    }
 
-    for (const annotation of foundAnnotations) {
-      const pageIdx = (annotation.pageNum || 1) - 1
+    for (const [pageNum, pageAnns] of annotationsByPage) {
+      const pageIdx = pageNum - 1
       if (pageIdx < 0 || pageIdx >= pages.length) continue
 
       const page = pages[pageIdx]
-      const textItems = textPositionsByPage.get(annotation.pageNum!) || []
-      const noteIdx = marginNoteOffset.get(pageIdx) || 0
+      const { width: pageWidth, height: pageHeight } = page.getSize()
+      const textItems = textPositionsByPage.get(pageNum) || []
 
-      console.log(`[annotatePdf] ${annotation.requirementId}: exactText=${annotation.exactText ? annotation.exactText.substring(0, 50) + '...' : 'NULL'}, textItems=${textItems.length}`)
+      pageAnns.forEach((ann, idx) => {
+        // Try to find matching text on the page
+        if (ann.exactText && textItems.length > 0) {
+          const words = ann.exactText.toLowerCase().split(/\s+/).filter(w => w.length >= 4).slice(0, 8)
+          const matches = textItems.filter(item => {
+            const t = item.str.toLowerCase()
+            return words.some(w => t.includes(w))
+          }).slice(0, 5) // max 5 highlights per requirement
 
-      if (!annotation.exactText) {
-        // No exact text to search — place a note in the right margin
-        const { width: pageWidth, height } = page.getSize()
-        page.drawText(`[${annotation.requirementId}]`, {
-          x: pageWidth - 75,
-          y: height - 25 - (noteIdx * 18),
-          size: 12,
-          color: rgb(0.8, 0, 0), // strong red
-          opacity: 1,
-        })
-        marginNoteOffset.set(pageIdx, noteIdx + 1)
-        continue
-      }
-
-      // Search for matching text items on the page
-      const searchTerms = extractSearchTerms(annotation.exactText)
-      const matchedItems = findMatchingTextItems(textItems, searchTerms)
-
-      if (matchedItems.length > 0) {
-        // Draw yellow highlight rectangles over matched text
-        for (const item of matchedItems) {
-          page.drawRectangle({
-            x: item.x - 1,
-            y: item.y - 2,
-            width: item.width + 2,
-            height: item.height + 4,
-            color: rgb(1, 1, 0), // yellow
-            opacity: 0.35,
-            borderWidth: 0,
-          })
+          if (matches.length > 0) {
+            // Draw yellow highlights on matched text
+            for (const match of matches) {
+              page.drawRectangle({
+                x: match.x - 1,
+                y: match.y - 2,
+                width: match.width + 2,
+                height: match.height + 4,
+                color: rgb(1, 1, 0),
+                opacity: 0.35,
+              })
+            }
+            // Green REQ label in right margin at first match height
+            page.drawText(ann.requirementId, {
+              x: pageWidth - 70,
+              y: matches[0].y,
+              size: 9,
+              color: rgb(0, 0.5, 0),
+              opacity: 1,
+            })
+            return
+          }
         }
 
-        // Add a REQ label in the right margin at the height of the first match
-        const firstMatch = matchedItems[0]
-        const { width: pageWidth } = page.getSize()
-        page.drawText(annotation.requirementId, {
+        // Fallback: put label in top margin area
+        const yPos = pageHeight - 25 - (idx * 16)
+        page.drawRectangle({
+          x: 15,
+          y: yPos - 2,
+          width: pageWidth - 90,
+          height: 12,
+          color: rgb(1, 1, 0),
+          opacity: 0.2,
+        })
+        page.drawText(ann.requirementId, {
           x: pageWidth - 70,
-          y: firstMatch.y,
-          size: 12,
-          color: rgb(0, 0.5, 0), // green
+          y: yPos,
+          size: 9,
+          color: rgb(0, 0.5, 0),
           opacity: 1,
         })
-      } else {
-        // Fallback: no text match found — place note in right margin
-        const { width: pageWidth, height } = page.getSize()
-        page.drawText(`[${annotation.requirementId}?]`, {
-          x: pageWidth - 75,
-          y: height - 25 - (noteIdx * 18),
-          size: 12,
-          color: rgb(0.8, 0, 0), // strong red
-          opacity: 1,
-        })
-        marginNoteOffset.set(pageIdx, noteIdx + 1)
-      }
+      })
     }
 
     const annotatedBytes = await pdfDoc.save()
@@ -367,75 +355,3 @@ export async function annotatePdf(
   }
 }
 
-/**
- * Extract meaningful search terms from a requirement text.
- * Splits into individual words and also keeps multi-word phrases.
- */
-function extractSearchTerms(text: string): string[] {
-  // Clean the text: remove newlines, extra spaces
-  const cleaned = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
-
-  // Split into meaningful phrases (sentences or comma-separated chunks)
-  const phrases = cleaned.split(/[.,;]\s*/).filter(p => p.length > 3)
-
-  // Also extract individual significant words (>= 4 chars, not common stop words)
-  const stopWords = new Set([
-    'debe', 'para', 'como', 'será', 'este', 'esta', 'todo', 'cada', 'pueden',
-    'tiene', 'desde', 'hasta', 'with', 'that', 'this', 'from', 'have', 'will',
-    'been', 'they', 'their', 'which', 'must', 'should', 'including', 'incluir',
-    'mismo', 'donde', 'cuando', 'sobre', 'entre', 'forma', 'manera', 'también',
-    'además', 'siendo', 'sistema', 'general', 'principales', 'the', 'and', 'for',
-  ])
-  const words = cleaned
-    .split(/\s+/)
-    .map(w => w.replace(/[^a-záéíóúñA-ZÁÉÍÓÚÑ0-9\-\/]/g, ''))
-    .filter(w => w.length >= 4 && !stopWords.has(w.toLowerCase()))
-
-  return [...phrases, ...words]
-}
-
-/**
- * Find text items on a page that match any of the search terms.
- * Uses case-insensitive substring matching with relaxed criteria.
- */
-function findMatchingTextItems(
-  textItems: Array<{ str: string; x: number; y: number; width: number; height: number }>,
-  searchTerms: string[]
-): Array<{ x: number; y: number; width: number; height: number }> {
-  const matched: Array<{ x: number; y: number; width: number; height: number }> = []
-  const alreadyHighlighted = new Set<number>() // track indices to avoid double-highlighting
-
-  // Extract unique meaningful words from all terms (4+ chars)
-  const allWords = new Set<string>()
-  for (const term of searchTerms) {
-    for (const word of term.toLowerCase().split(/\s+/)) {
-      const clean = word.replace(/[^a-záéíóúñ0-9\-\/]/g, '')
-      if (clean.length >= 4) allWords.add(clean)
-    }
-  }
-  const uniqueWords = [...allWords]
-
-  // For each text item, check how many search words it contains
-  for (let i = 0; i < textItems.length; i++) {
-    if (alreadyHighlighted.has(i)) continue
-    const itemText = textItems[i].str.toLowerCase()
-    if (itemText.length < 3) continue // skip very short fragments
-
-    let matchScore = 0
-    for (const word of uniqueWords) {
-      if (itemText.includes(word)) {
-        matchScore++
-      }
-    }
-
-    // Highlight if at least 1 word matches for short items,
-    // or if the item contains a significant keyword
-    if (matchScore >= 1) {
-      matched.push(textItems[i])
-      alreadyHighlighted.add(i)
-    }
-  }
-
-  // Limit to max 20 highlights per requirement to avoid over-highlighting
-  return matched.slice(0, 20)
-}

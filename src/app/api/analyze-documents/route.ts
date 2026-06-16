@@ -149,6 +149,7 @@ export async function POST(request: NextRequest) {
         documentId: doc.documentId,
         filename: doc.filename,
         documentType: doc.documentType,
+        originalFileUrl: doc.originalFileUrl,
         annotations: [],
         annotationCount: 0,
       })
@@ -183,6 +184,7 @@ export async function POST(request: NextRequest) {
         documentId: doc.documentId,
         filename: doc.filename,
         documentType: doc.documentType,
+        originalFileUrl: doc.originalFileUrl,
         annotations: doc.matchedRequirements.map(r => ({
           requirementId: r.requirementId,
           found: false,
@@ -256,6 +258,7 @@ Respond in JSON ONLY:
         documentId: doc.documentId,
         filename: doc.filename,
         documentType: doc.documentType,
+        originalFileUrl: doc.originalFileUrl,
         annotations,
         annotationCount: foundCount,
       })
@@ -265,6 +268,7 @@ Respond in JSON ONLY:
         documentId: doc.documentId,
         filename: doc.filename,
         documentType: doc.documentType,
+        originalFileUrl: doc.originalFileUrl,
         annotations: doc.matchedRequirements.map(r => ({
           requirementId: r.requirementId,
           found: false,

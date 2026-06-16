@@ -20,9 +20,10 @@ interface DocumentRow {
 interface DocumentSelectorProps {
   ettDocument?: EttDocument
   onRunAnalysis?: (selected: SelectedDocument[]) => void
+  disabled?: boolean
 }
 
-export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelectorProps) {
+export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false }: DocumentSelectorProps) {
   const t = useTranslations('analysis')
   const tc = useTranslations('common')
   const [documents, setDocuments] = useState<DocumentRow[]>([])
@@ -241,7 +242,8 @@ export function DocumentSelector({ ettDocument, onRunAnalysis }: DocumentSelecto
         <button
           type="button"
           onClick={handleRunAnalysis}
-          className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
+          disabled={disabled}
+          className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
           style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
           {t('runAnalysis', { count: selectedCount })}

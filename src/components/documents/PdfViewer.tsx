@@ -55,7 +55,7 @@ export function PdfViewer({ url }: PdfViewerProps) {
         </div>
 
         <div style={{ height: 'calc(100% - 33px)' }}>
-          <Worker workerUrl="https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js">
+          <Worker workerUrl="https://unpkg.com/pdfjs-dist@5.6.205/build/pdf.worker.min.mjs">
             <Viewer
               fileUrl={url}
               plugins={[defaultLayoutPluginInstance]}
