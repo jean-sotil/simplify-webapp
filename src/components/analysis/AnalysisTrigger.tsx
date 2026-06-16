@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { triggerAnalysis } from '@/app/[lang]/projects/[id]/analysis/actions'
@@ -18,6 +18,16 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [triggered, setTriggered] = useState(false)
   const router = useRouter()
+
+  // Auto-refresh the page every 5s while analysis is running
+  // This will cause the server component to re-render with updated status
+  useEffect(() => {
+    if (!triggered) return
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [triggered, router])
 
   function handleRunAnalysis(selectedDocuments: SelectedDocument[]) {
     setTriggerError(null)
@@ -38,23 +48,33 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
 
   if (triggered) {
     return (
-      <p className="text-sm" style={{ color: 'var(--color-mute)' }}>
-        {t('triggered')}
-      </p>
+      <div
+        className="border rounded-md p-6 text-center"
+        style={{ borderColor: 'var(--color-accent-blue)', backgroundColor: 'rgba(59, 130, 246, 0.05)' }}
+      >
+        <div className="inline-block animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full mb-3" style={{ color: 'var(--color-accent-blue)' }} />
+        <p className="text-sm font-medium" style={{ color: 'var(--color-ink)' }}>
+          {t('inProgress')}
+        </p>
+        <p className="text-xs mt-1" style={{ color: 'var(--color-mute)' }}>
+          {t('polling')}
+        </p>
+      </div>
     )
   }
 
   return (
     <div>
       {isPending && (
-        <p
+        <div
+          className="mb-4 p-3 rounded-sm text-sm flex items-center gap-2"
+          style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--color-ink)' }}
           role="status"
           aria-live="polite"
-          className="text-sm mb-4"
-          style={{ color: 'var(--color-mute)' }}
         >
+          <span className="inline-block animate-spin w-4 h-4 border-2 border-current border-t-transparent rounded-full" />
           {t('triggering')}
-        </p>
+        </div>
       )}
       {triggerError && (
         <p

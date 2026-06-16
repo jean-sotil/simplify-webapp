@@ -243,10 +243,10 @@ export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false 
           type="button"
           onClick={handleRunAnalysis}
           disabled={disabled}
-          className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
-          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
+          className="w-full rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{ backgroundColor: disabled ? 'var(--color-mute)' : 'var(--color-primary)', color: 'var(--color-on-primary)' }}
         >
-          {t('runAnalysis', { count: selectedCount })}
+          {disabled ? t('inProgress') : t('runAnalysis', { count: selectedCount })}
         </button>
       )}
     </div>

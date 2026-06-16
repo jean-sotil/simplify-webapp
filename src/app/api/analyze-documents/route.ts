@@ -197,88 +197,119 @@ export async function POST(request: NextRequest) {
       continue
     }
 
-    // Step 2: Call LLM to identify evidence
-    await updateStage(`Analyzing ${doc.filename} with LLM (${docIdx + 1}/${totalDocs})...`)
-    console.log(`[analyze] ${docLabel} — calling LLM (${pages.length} pages, ${doc.matchedRequirements.length} reqs)`)
-    const pageTexts = pages.map(p => `--- PAGE ${p.pageNum} ---\n${p.text}`).join('\n\n')
-    const reqList = doc.matchedRequirements.map(r => `${r.requirementId}: ${r.text}`).join('\n')
+    // Step 2: Two-pass analysis
+    // Pass 1: Direct keyword matching (no LLM tokens needed)
+    const directMatches: AnnotationResult[] = []
+    const unmatchedReqs: typeof doc.matchedRequirements = []
 
-    const systemPrompt = `You are a technical document analyst. Find the EXACT text fragments in a PDF that provide evidence for each technical requirement.
+    for (const req of doc.matchedRequirements) {
+      const match = findDirectMatch(req.text, pages)
+      if (match) {
+        directMatches.push({
+          requirementId: req.requirementId,
+          found: true,
+          pageNum: match.pageNum,
+          exactText: match.exactText,
+          confidence: 0.9,
+        })
+      } else {
+        unmatchedReqs.push(req)
+      }
+    }
 
-Rules:
-- Return the EXACT text as it appears in the PDF (do not paraphrase)
-- Requirements and PDF content may be in different languages (Spanish, English, or Portuguese). Always find the matching text regardless of language differences.
-- If you cannot find clear evidence, set found to false
-- Each fragment: 1-3 sentences max (minimum needed to prove compliance)
-- Include the page number where you found it
+    if (directMatches.length > 0) {
+      console.log(`[analyze] ${docLabel} — direct match: ${directMatches.length}/${doc.matchedRequirements.length} found without LLM`)
+    }
+
+    // Pass 2: Send only unmatched requirements to LLM
+    let llmAnnotations: AnnotationResult[] = []
+    if (unmatchedReqs.length > 0) {
+      await updateStage(`Analyzing ${doc.filename} with LLM (${docIdx + 1}/${totalDocs})...`)
+      console.log(`[analyze] ${docLabel} — calling LLM (${pages.length} pages, ${unmatchedReqs.length} remaining reqs)`)
+      const pageTexts = pages.map(p => `--- PAGE ${p.pageNum} ---\n${p.text}`).join('\n\n')
+      const reqList = unmatchedReqs.map(r => `${r.requirementId}: ${r.text}`).join('\n')
+
+      const systemPrompt = `You are a technical compliance analyst. Your job is to find evidence in a technical document (datasheet/spec sheet) that satisfies each requirement.
+
+IMPORTANT RULES:
+- Look for FUNCTIONAL EQUIVALENCE, not just exact text matches
+- A requirement in Spanish like "Puerto Ethernet 10/100/1000" matches English text like "RJ-45 10/100/1000 Mbps Ethernet"
+- A requirement like "Debe soportar 600 LBS" matches "Holding force: 600 lbs (2700N)"
+- Technical specs often use abbreviations, different units, or different terminology for the same thing
+- If the document clearly provides the capability described in the requirement, mark it as found
+- Return the EXACT text fragment from the PDF that proves compliance (do not paraphrase)
+- If you cannot find clear evidence of compliance, set found to false
+- Include the page number where evidence was found
+- Each evidence fragment: 1-3 sentences max
 
 Respond in JSON ONLY:
-{"annotations":[{"requirementId":"REQ-001","found":true,"pageNum":1,"exactText":"text from PDF","confidence":0.95}]}`
+{"annotations":[{"requirementId":"REQ-001","found":true,"pageNum":2,"exactText":"exact text from PDF here","confidence":0.85}]}`
 
-    const userPrompt = `REQUIREMENTS TO FIND:\n${reqList}\n\nPDF CONTENT:\n${pageTexts}`
+      const userPrompt = `TECHNICAL REQUIREMENTS TO VERIFY:\n${reqList}\n\nDOCUMENT CONTENT:\n${pageTexts}`
 
-    try {
-      const apiKey = openrouterKey || process.env.OPENAI_API_KEY
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai/gpt-4o',
-          temperature: 0.1,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`OpenRouter API error: ${response.status}`)
-      }
-
-      const llmResult = await response.json()
-      const content = llmResult.choices[0].message.content
-
-      let parsed: { annotations?: AnnotationResult[] }
       try {
-        parsed = JSON.parse(content)
-      } catch {
-        const cleaned = content.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
-        parsed = JSON.parse(cleaned)
-      }
+        const apiKey = openrouterKey || process.env.OPENAI_API_KEY
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-4o',
+            temperature: 0,
+            response_format: { type: 'json_object' },
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          }),
+        })
 
-      const annotations = parsed.annotations || []
-      const foundCount = annotations.filter(a => a.found).length
-      console.log(`[analyze] ${docLabel} — LLM done: ${foundCount}/${annotations.length} requirements found`)
-      results.push({
-        documentId: doc.documentId,
-        filename: doc.filename,
-        documentType: doc.documentType,
-        originalFileUrl: doc.originalFileUrl,
-        annotations,
-        annotationCount: foundCount,
-      })
-    } catch (err) {
-      console.error(`[analyze] ${docLabel} — LLM FAILED:`, err instanceof Error ? err.message : err)
-      results.push({
-        documentId: doc.documentId,
-        filename: doc.filename,
-        documentType: doc.documentType,
-        originalFileUrl: doc.originalFileUrl,
-        annotations: doc.matchedRequirements.map(r => ({
+        if (!response.ok) {
+          throw new Error(`OpenRouter API error: ${response.status}`)
+        }
+
+        const llmResult = await response.json()
+        const content = llmResult.choices[0].message.content
+
+        let parsed: { annotations?: AnnotationResult[] }
+        try {
+          parsed = JSON.parse(content)
+        } catch {
+          const cleaned = content.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
+          parsed = JSON.parse(cleaned)
+        }
+
+        const annotations = parsed.annotations || []
+        const foundCount = annotations.filter(a => a.found).length
+        console.log(`[analyze] ${docLabel} — LLM done: ${foundCount}/${annotations.length} requirements found`)
+        llmAnnotations = annotations
+      } catch (err) {
+        console.error(`[analyze] ${docLabel} — LLM FAILED:`, err instanceof Error ? err.message : err)
+        llmAnnotations = unmatchedReqs.map(r => ({
           requirementId: r.requirementId,
           found: false,
           pageNum: null,
           exactText: null,
-          confidence: 0,
-        })),
-        annotationCount: 0,
-      })
+        confidence: 0,
+      }))
     }
+    } // end if unmatchedReqs.length > 0
+
+    // Merge direct matches + LLM results
+    const allAnnotations = [...directMatches, ...llmAnnotations]
+    const totalFound = allAnnotations.filter(a => a.found).length
+    console.log(`[analyze] ${docLabel} — TOTAL: ${totalFound}/${doc.matchedRequirements.length} requirements found (${directMatches.length} direct + ${llmAnnotations.filter(a => a.found).length} LLM)`)
+
+    results.push({
+      documentId: doc.documentId,
+      filename: doc.filename,
+      documentType: doc.documentType,
+      originalFileUrl: doc.originalFileUrl,
+      annotations: allAnnotations,
+      annotationCount: totalFound,
+    })
   }
 
   const responseData = {
@@ -476,4 +507,62 @@ function normalizeETTText(text: string): string {
   r = r.replace(/\s+(o\s{2,})/g, '\n$1')
 
   return r
+}
+
+
+// ---------------------------------------------------------------------------
+// Direct keyword matching (Pass 1 - no LLM needed)
+// ---------------------------------------------------------------------------
+
+function findDirectMatch(
+  requirementText: string,
+  pages: Array<{ pageNum: number; text: string }>
+): { pageNum: number; exactText: string } | null {
+  // Extract significant keywords from the requirement (4+ chars, no stop words)
+  const stopWords = new Set([
+    'debe', 'para', 'como', 'sera', 'este', 'esta', 'todo', 'cada', 'pueden',
+    'tiene', 'desde', 'hasta', 'mismo', 'donde', 'cuando', 'sobre', 'entre',
+    'incluir', 'superior', 'similar', 'correspondiente', 'sistema', 'general',
+  ])
+
+  const words = requirementText
+    .toLowerCase()
+    .replace(/[^a-záéíóúñ0-9\s\-\/\.]/g, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 4 && !stopWords.has(w))
+
+  if (words.length === 0) return null
+
+  // Need at least 60% of significant words to match on a single page
+  const threshold = Math.max(2, Math.ceil(words.length * 0.6))
+
+  for (const page of pages) {
+    const pageTextLower = page.text.toLowerCase()
+    const matchedWords = words.filter(w => pageTextLower.includes(w))
+
+    if (matchedWords.length >= threshold) {
+      // Find the best matching sentence/fragment
+      const sentences = page.text.split(/[.!?\n]/).filter(s => s.trim().length > 10)
+      let bestSentence = ''
+      let bestScore = 0
+
+      for (const sentence of sentences) {
+        const sentLower = sentence.toLowerCase()
+        const score = matchedWords.filter(w => sentLower.includes(w)).length
+        if (score > bestScore) {
+          bestScore = score
+          bestSentence = sentence.trim()
+        }
+      }
+
+      if (bestSentence) {
+        return {
+          pageNum: page.pageNum,
+          exactText: bestSentence.substring(0, 200),
+        }
+      }
+    }
+  }
+
+  return null
 }

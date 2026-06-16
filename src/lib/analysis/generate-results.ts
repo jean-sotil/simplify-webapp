@@ -294,56 +294,60 @@ export async function annotatePdf(
       const { width: pageWidth, height: pageHeight } = page.getSize()
       const textItems = textPositionsByPage.get(pageNum) || []
 
-      pageAnns.forEach((ann, idx) => {
-        // Try to find matching text on the page
+      // Track which text items have already been highlighted (avoid duplicate highlights)
+      const highlightedItems = new Set<number>()
+      // Track label Y positions to avoid overlapping labels
+      let nextLabelY = pageHeight - 20
+      const LABEL_SPACING = 14
+
+      pageAnns.forEach((ann) => {
         if (ann.exactText && textItems.length > 0) {
           const words = ann.exactText.toLowerCase().split(/\s+/).filter(w => w.length >= 4).slice(0, 8)
-          const matches = textItems.filter(item => {
-            const t = item.str.toLowerCase()
-            return words.some(w => t.includes(w))
-          }).slice(0, 5) // max 5 highlights per requirement
+          const matches: Array<{ idx: number; item: typeof textItems[0] }> = []
+
+          for (let i = 0; i < textItems.length && matches.length < 3; i++) {
+            if (highlightedItems.has(i)) continue // skip already highlighted
+            const t = textItems[i].str.toLowerCase()
+            if (words.some(w => t.includes(w))) {
+              matches.push({ idx: i, item: textItems[i] })
+            }
+          }
 
           if (matches.length > 0) {
-            // Draw yellow highlights on matched text
-            for (const match of matches) {
+            // Draw yellow highlights only on NEW (not already highlighted) items
+            for (const { idx, item } of matches) {
+              highlightedItems.add(idx)
               page.drawRectangle({
-                x: match.x - 1,
-                y: match.y - 2,
-                width: match.width + 2,
-                height: match.height + 4,
+                x: item.x - 1,
+                y: item.y - 2,
+                width: item.width + 2,
+                height: item.height + 4,
                 color: rgb(1, 1, 0),
-                opacity: 0.35,
+                opacity: 0.3,
               })
             }
-            // Green REQ label in right margin at first match height
+            // Green REQ label in right margin, staggered vertically
             page.drawText(ann.requirementId, {
               x: pageWidth - 70,
-              y: matches[0].y,
-              size: 9,
+              y: nextLabelY,
+              size: 8,
               color: rgb(0, 0.5, 0),
               opacity: 1,
             })
+            nextLabelY -= LABEL_SPACING
             return
           }
         }
 
-        // Fallback: put label in top margin area
-        const yPos = pageHeight - 25 - (idx * 16)
-        page.drawRectangle({
-          x: 15,
-          y: yPos - 2,
-          width: pageWidth - 90,
-          height: 12,
-          color: rgb(1, 1, 0),
-          opacity: 0.2,
-        })
+        // Fallback: put label in right margin area (staggered)
         page.drawText(ann.requirementId, {
           x: pageWidth - 70,
-          y: yPos,
-          size: 9,
-          color: rgb(0, 0.5, 0),
-          opacity: 1,
+          y: nextLabelY,
+          size: 8,
+          color: rgb(0.6, 0.3, 0),
+          opacity: 0.8,
         })
+        nextLabelY -= LABEL_SPACING
       })
     }
 
@@ -354,4 +358,3 @@ export async function annotatePdf(
     return null
   }
 }
-
