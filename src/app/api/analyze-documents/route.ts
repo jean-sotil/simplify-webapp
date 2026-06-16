@@ -48,6 +48,7 @@ interface ProcessedDocument {
  * }
  */
 export async function POST(request: NextRequest) {
+  console.log('[analyze-documents] === POST HANDLER CALLED ===')
   const body = await request.json()
   const { documents, blobToken, openrouterKey, analysisId, projectId } = body as {
     documents: DocumentInput[]
@@ -59,6 +60,51 @@ export async function POST(request: NextRequest) {
 
   if (!documents?.length) {
     return NextResponse.json({ error: 'No documents provided' }, { status: 400 })
+  }
+
+  console.log(`[analyze] Received: ${documents.length} docs, projectId=${projectId || 'NONE'}, analysisId=${analysisId?.substring(0,8) || 'NONE'}`)
+
+  // Extract requirements from ETT document directly from DB
+  // This bypasses any Server Action caching issues
+  if (projectId) {
+    try {
+      // Get all documents attached to this project
+      const { data: projectDocs } = await supabaseAdmin
+        .from('project_documents')
+        .select('document_id')
+        .eq('project_id', projectId)
+
+      if (projectDocs && projectDocs.length > 0) {
+        const docIds = projectDocs.map(pd => pd.document_id)
+        const { data: ettDocs } = await supabaseAdmin
+          .from('documents')
+          .select('id, extracted_text, document_type')
+          .in('id', docIds)
+          .eq('document_type', 'ett')
+          .limit(1)
+
+        if (ettDocs && ettDocs[0]?.extracted_text) {
+          const allReqs = extractETTRequirements(ettDocs[0].extracted_text)
+          console.log(`[analyze] Extracted ${allReqs.length} requirements from ETT (DB, ${ettDocs[0].extracted_text.length} chars)`)
+
+          if (allReqs.length > 0) {
+            const reqsForDocs = allReqs.map((r) => ({
+              requirementId: r.requirementId,
+              text: r.text,
+              pageNumber: null as number | null,
+              similarityScore: 0,
+            }))
+            for (const doc of documents) {
+              doc.matchedRequirements = reqsForDocs
+            }
+          }
+        } else {
+          console.log('[analyze] No ETT document found for project')
+        }
+      }
+    } catch (err) {
+      console.warn('[analyze] Failed to extract ETT requirements from DB:', err)
+    }
   }
 
   // Helper to update processing stage in DB (accumulates as a log)
@@ -76,80 +122,7 @@ export async function POST(request: NextRequest) {
     }).eq('id', analysisId)
   }
 
-  // Mock mode: return fake results without calling LLM or downloading PDFs
-  const useMock = process.env.MOCK_ANALYSIS === 'true' || body.mock === true
-  if (useMock) {
-    console.log(`[analyze] [${analysisId?.substring(0, 8) ?? 'no-id'}] MOCK MODE enabled`)
-    await updateStage('Generating mock results...')
-
-    const mockResults: ProcessedDocument[] = documents.map(doc => ({
-      documentId: doc.documentId,
-      filename: doc.filename,
-      documentType: doc.documentType,
-      originalFileUrl: doc.originalFileUrl,
-      annotations: (doc.matchedRequirements || []).map(req => ({
-        requirementId: req.requirementId,
-        found: true,
-        pageNum: req.pageNumber ?? Math.ceil(Math.random() * 5),
-        exactText: `[MOCK] Evidence found for: ${req.text.substring(0, 60)}...`,
-        confidence: 0.85,
-      })),
-      annotationCount: (doc.matchedRequirements || []).length,
-    }))
-
-    const responseData = {
-      processedDocs: mockResults,
-      totalDocuments: mockResults.length,
-      totalAnnotations: mockResults.reduce((sum, d) => sum + d.annotationCount, 0),
-      generatedAt: new Date().toISOString(),
-    }
-
-    if (analysisId) {
-      // Generate ZIP with Excel results even in mock mode
-      await updateStage('Generating compliance matrix (Excel)...')
-      let zipFileUrl: string | null = null
-      try {
-        let projectName = 'Analysis'
-        if (projectId) {
-          const { data: project } = await supabaseAdmin
-            .from('projects').select('name').eq('id', projectId).single()
-          if (project) projectName = project.name
-        }
-
-        await updateStage('Creating ZIP package...')
-        zipFileUrl = await generateAnalysisResults({
-          processedDocs: mockResults,
-          analysisId,
-          projectName,
-          blobToken: process.env.BLOB_READ_WRITE_TOKEN,
-          onStage: updateStage,
-        })
-        console.log(`[analyze] [${analysisId.substring(0, 8)}] ZIP uploaded: ${zipFileUrl}`)
-        await updateStage('Saving results...')
-      } catch (err) {
-        console.error(`[analyze] [${analysisId.substring(0, 8)}] ZIP generation failed:`, err)
-      }
-
-      await supabaseAdmin.from('analysis_results').update({
-        status: 'completed',
-        zip_file_url: zipFileUrl,
-        analysis_metadata: {
-          documentCount: responseData.totalDocuments,
-          totalAnnotations: responseData.totalAnnotations,
-          processedDocuments: responseData.processedDocs,
-          generatedAt: responseData.generatedAt,
-        },
-        completed_at: new Date().toISOString(),
-      }).eq('id', analysisId)
-
-      if (projectId) {
-        revalidatePath(`/[lang]/projects/${projectId}`, 'page')
-      }
-    }
-
-    return NextResponse.json(responseData)
-  }
-
+  // Process each document with LLM
   const results: ProcessedDocument[] = []
   const totalDocs = documents.length
 
@@ -220,8 +193,7 @@ export async function POST(request: NextRequest) {
 
 Rules:
 - Return the EXACT text as it appears in the PDF (do not paraphrase)
-- If the requirement is in Spanish but the PDF is in English, find the English text that satisfies it
-- If the requirement is in Spanish and the PDF is also in Spanish, find the matching Spanish text
+- Requirements and PDF content may be in different languages (Spanish, English, or Portuguese). Always find the matching text regardless of language differences.
 - If you cannot find clear evidence, set found to false
 - Each fragment: 1-3 sentences max (minimum needed to prove compliance)
 - Include the page number where you found it
@@ -358,4 +330,99 @@ Respond in JSON ONLY:
   }
 
   return NextResponse.json(responseData)
+}
+
+
+// ---------------------------------------------------------------------------
+// Inline ETT requirement extraction (avoids server-only import issues)
+// ---------------------------------------------------------------------------
+
+const SPEC_STARTERS = [
+  /^Debe\b/i, /^Deberá\b/i, /^Puerto[s]?\b/i, /^Incluir\b/i, /^Incluye\b/i,
+  /^Soporta[r]?\b/i, /^Voltaje\b/i, /^Protección\b/i, /^Temperatura\b/i,
+  /^Humedad\b/i, /^Algoritmo\b/i, /^Certificación\b/i, /^Listado\s+por\b/i,
+  /^Procesador\b/i, /^Frecuencia\b/i, /^Memoria\b/i, /^Almacenamiento\b/i,
+  /^Arquitectura\b/i, /^Unidad\b/i, /^Tarjeta\b/i, /^Material\b/i,
+  /^Tipo\s+de\b/i, /^Licencia\b/i, /^Autenticación\b/i,
+  /^El\s+controlador\b/i, /^El\s+sistema\b/i, /^La\s+(identificación|interfaz|comunicación)\b/i,
+  /^Los\s+controladores\b/i, /^Se\s+(listan|pueden|instalará|debe|requiere)\b/i,
+  /^Reporte\b/i, /^Informe\b/i, /^Reportes\b/i,
+  /^Alarma[s]?\b/i, /^Las\s+alarmas\b/i,
+  /^\d{2,4}\s*(GB|MB|TB|MHz|GHz|Mbps|VDC|VAC|LBS|bits)\b/i,
+  /^\d+\s*(puertos?|entradas?|salidas?|núcleos?)\b/i,
+  /^Mínimo\b/i, /^Máximo\b/i,
+  /^LED\b/i, /^RS-485\b/i, /^Wiegand\b/i, /^IP\d{2}\b/i,
+  /^Con\s+(reducción|optimizador|protección)\b/i,
+]
+
+const ETT_NOISE = [
+  /^NUEVO HOSPITAL/i, /^.Mejoramiento/i, /^Provincia de Lambayeque/i,
+  /^Av\.\s*Circunvalaci/i, /Página\s*\d+/i, /Santiago de Surco/i,
+  /^--- Page \d+ ---$/,
+]
+
+const ETT_PARTIDA = /^(\d{2}\.\d{2}(?:\.\d{2}){0,2})\s+(.+)/
+
+function extractETTRequirements(rawText: string): Array<{ requirementId: string; text: string }> {
+  const lines = rawText.split('\n')
+  const requirements: Array<{ requirementId: string; text: string }> = []
+  let currentReqLines: string[] = []
+  let inTargetSection = false
+  let reqCounter = 0
+
+  function flush() {
+    if (currentReqLines.length === 0) return
+    const text = currentReqLines.join('\n').trim()
+    if (text.length < 15) { currentReqLines = []; return }
+    reqCounter++
+    requirements.push({
+      requirementId: `REQ-${String(reqCounter).padStart(3, '0')}`,
+      text,
+    })
+    currentReqLines = []
+  }
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+    if (ETT_NOISE.some(p => p.test(trimmed))) continue
+
+    const partidaMatch = trimmed.match(ETT_PARTIDA)
+    if (partidaMatch) {
+      flush()
+      // currentPartida tracks section context (used for debugging)
+      void partidaMatch[2]
+      inTargetSection = partidaMatch[1].startsWith('06.11')
+      continue
+    }
+
+    if (!inTargetSection) continue
+
+    // Bullet-prefixed lines
+    if (/^\s*[•\-○●]\s+|^\s*o\s{2,}|^\s*\d+[.)]\s+/.test(trimmed)) {
+      flush()
+      const cleaned = trimmed
+        .replace(/^\s*[•\-○●]\s+/, '')
+        .replace(/^\s*o\s{2,}/, '')
+        .replace(/^\s*\d+[.)]\s+/, '')
+      currentReqLines.push(cleaned)
+      continue
+    }
+
+    // Spec starter patterns
+    if (SPEC_STARTERS.some(p => p.test(trimmed))) {
+      flush()
+      currentReqLines.push(trimmed)
+      continue
+    }
+
+    // Continuation
+    if (currentReqLines.length > 0 && trimmed.length < 250) {
+      if (/^[A-ZÁÉÍÓÚÑ]{4,}(\s+[A-ZÁÉÍÓÚÑ]+)*$/.test(trimmed)) { flush(); continue }
+      currentReqLines.push(trimmed)
+    }
+  }
+
+  flush()
+  return requirements
 }

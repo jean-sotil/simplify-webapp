@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '52mb',
     },
   },
+  serverExternalPackages: ['canvas'],
 }
 
 export default withNextIntl(nextConfig)

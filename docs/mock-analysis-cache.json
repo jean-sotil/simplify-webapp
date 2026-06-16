@@ -1,0 +1,101 @@
+{
+  "processedDocs": [
+    {
+      "filename": "DS-PD1-MC-MS.pdf",
+      "documentId": "6e5ae5b7-9709-4c74-ac17-6224658250aa",
+      "annotations": [
+        {
+          "found": true,
+          "pageNum": 1,
+          "exactText": "Alarma de apertura por acceso forzado de puertas principales en horario de no\noperación.",
+          "confidence": 0.85,
+          "requirementId": "REQ-011"
+        }
+      ],
+      "documentType": "hardware",
+      "annotationCount": 1,
+      "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-PD1-MC-MS-VGEyuhuqSqQui6DqY3Dd9dqsZWZWu1.pdf"
+    },
+    {
+      "filename": "optiplex-sff-spec-sheet-7020.pdf",
+      "documentId": "06dc52ac-f7ce-4101-87de-2b13956840d9",
+      "annotations": [
+        {
+          "found": true,
+          "pageNum": 9,
+          "exactText": "04 puerto USB traseros 3.0.\n Incluir Mouse y teclado del mismo fabricante del equipo.\n Se debe incluir monitor LED de 24” mínimo.\n Puerto Ethernet 10/100/1000 Mbps.\n Sistema operativo preinstalado y licenciado Windows 10 profesional o similar.\n Debe incluir antivirus con el licenciamiento correspondiente. La licencia antivirus será\ncomprendida en la plataforma antivirus del proyecto.",
+          "confidence": 0.85,
+          "requirementId": "REQ-001"
+        }
+      ],
+      "documentType": "hardware",
+      "annotationCount": 1,
+      "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/optiplex-sff-spec-sheet-7020-SCFxP7r28MvlpKz2zb8kwvJfSENzHz.pdf"
+    },
+    {
+      "filename": "DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919.pdf",
+      "documentId": "3e2ef7e0-73b1-484c-b933-7c9dc072dee6",
+      "annotations": [
+        {
+          "found": true,
+          "pageNum": 2,
+          "exactText": "04 puerto USB traseros 3.0.\n Incluir Mouse y teclado del mismo fabricante del equipo.\n Se debe incluir monitor LED de 24” mínimo.\n Puerto Ethernet 10/100/1000 Mbps.\n Sistema operativo preinstalado y licenciado Windows 10 profesional o similar.\n Debe incluir antivirus con el licenciamiento correspondiente. La licencia antivirus será\ncomprendida en la plataforma antivirus del proyecto.",
+          "confidence": 0.85,
+          "requirementId": "REQ-001"
+        },
+        {
+          "found": true,
+          "pageNum": 2,
+          "exactText": "Las alarmas deben evaluarse y responderse rápidamente. El sistema de\nseguridad presenta una gran cantidad de alarmas de una manera simple y\neficiente para garantizar que no se pase por alto ninguna alarma.",
+          "confidence": 0.85,
+          "requirementId": "REQ-009"
+        },
+        {
+          "found": true,
+          "pageNum": 2,
+          "exactText": "El sistema debe reportar alarma visual y sonora por acceso a áreas restringidas.",
+          "confidence": 0.85,
+          "requirementId": "REQ-010"
+        }
+      ],
+      "documentType": "hardware",
+      "annotationCount": 3,
+      "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K2600-G-Series-Access-Controller_Datasheet_V1.0_20220919-B0z2AhB4I46P3P9cnFvJo8SuapTgnZ.pdf"
+    },
+    {
+      "filename": "DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401.pdf",
+      "documentId": "ac2f0009-d3ff-4442-80ac-7937298b5a0a",
+      "annotations": [
+        {
+          "found": true,
+          "pageNum": 2,
+          "exactText": "04 puerto USB traseros 3.0.\n Incluir Mouse y teclado del mismo fabricante del equipo.\n Se debe incluir monitor LED de 24” mínimo.\n Puerto Ethernet 10/100/1000 Mbps.\n Sistema operativo preinstalado y licenciado Windows 10 profesional o similar.\n Debe incluir antivirus con el licenciamiento correspondiente. La licencia antivirus será\ncomprendida en la plataforma antivirus del proyecto.",
+          "confidence": 0.85,
+          "requirementId": "REQ-001"
+        }
+      ],
+      "documentType": "hardware",
+      "annotationCount": 1,
+      "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K1T502DBFWX-C_Access-Control-Terminal_Datasheet_20240401-1cMTs8yDpmM1ggsi9yjL05KdsH6uxr.pdf"
+    },
+    {
+      "filename": "DS-K7P01_Datasheet_20231213.pdf",
+      "documentId": "96b780bb-e687-4979-bed9-4e5e4dff12ee",
+      "annotations": [],
+      "documentType": "hardware",
+      "annotationCount": 0,
+      "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K7P01_Datasheet_20231213-mdOmAp1UJSTKiYScqJk0xxmwxOQU2R.pdf"
+    },
+    {
+      "filename": "DS-K4H258S_Datasheet_20231213.pdf",
+      "documentId": "f8986067-1dff-4a61-9c10-7b2139b017c6",
+      "annotations": [],
+      "documentType": "hardware",
+      "annotationCount": 0,
+      "originalFileUrl": "https://dago3eyqjx06jacf.private.blob.vercel-storage.com/DS-K4H258S_Datasheet_20231213-gCNYRbycTeQCoAPA2oe5Slda1LLFxo.pdf"
+    }
+  ],
+  "totalDocuments": 6,
+  "totalAnnotations": 6,
+  "generatedAt": "2026-06-16T03:15:52.915Z"
+}

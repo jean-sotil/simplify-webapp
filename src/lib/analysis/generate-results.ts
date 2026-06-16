@@ -229,6 +229,7 @@ async function createZipBuffer(files: Array<{ name: string; buffer: Buffer }>): 
 
 /**
  * Annotates a PDF with yellow highlights on pages where evidence was found.
+ * Uses pdfjs-dist to locate text coordinates, then pdf-lib to draw highlights.
  * Returns the annotated PDF as a Buffer, or null if annotation fails.
  */
 export async function annotatePdf(
@@ -246,38 +247,195 @@ export async function annotatePdf(
     if (!response.ok) return null
 
     const pdfBytes = await response.arrayBuffer()
+    const pdfBuffer = Buffer.from(pdfBytes)
+
+    // Step 1: Use pdfjs-dist to extract text positions from the PDF
+    // Dynamic require to avoid Turbopack bundling the 'canvas' optional dep
+    const pdfjsLib = eval('require')('pdfjs-dist/legacy/build/pdf.js')
+    const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer), verbosity: 0 }).promise
+
+    // Build a map: pageNumber -> array of { text, x, y, width, height }
+    const textPositionsByPage = new Map<number, Array<{ str: string; x: number; y: number; width: number; height: number }>>()
+
+    // Only extract text for pages we need
+    const neededPages = new Set(foundAnnotations.map(a => a.pageNum!))
+    for (const pageNum of neededPages) {
+      const page = await pdfjsDoc.getPage(pageNum)
+      const textContent = await page.getTextContent()
+
+      const items: Array<{ str: string; x: number; y: number; width: number; height: number }> = []
+      for (const item of textContent.items) {
+        if (!('str' in item) || !item.str.trim()) continue
+        // transform: [scaleX, skewX, skewY, scaleY, translateX, translateY]
+        const tx = item.transform[4]
+        const ty = item.transform[5]
+        const fontSize = Math.abs(item.transform[3]) || Math.abs(item.transform[0])
+        const width = item.width
+        const height = fontSize
+
+        items.push({
+          str: item.str,
+          x: tx,
+          y: ty,
+          width: width,
+          height: height,
+        })
+      }
+      textPositionsByPage.set(pageNum, items)
+    }
+
+    await pdfjsDoc.destroy()
+
+    // Step 2: Use pdf-lib to draw highlight rectangles
     const pdfDoc = await PDFDocument.load(pdfBytes)
     const pages = pdfDoc.getPages()
+
+    // Track vertical offset per page for stacking margin notes
+    const marginNoteOffset = new Map<number, number>()
 
     for (const annotation of foundAnnotations) {
       const pageIdx = (annotation.pageNum || 1) - 1
       if (pageIdx < 0 || pageIdx >= pages.length) continue
 
       const page = pages[pageIdx]
-      const { height } = page.getSize()
+      const textItems = textPositionsByPage.get(annotation.pageNum!) || []
+      const noteIdx = marginNoteOffset.get(pageIdx) || 0
 
-      // Draw a highlight banner at the top of the page indicating the requirement
-      page.drawRectangle({
-        x: 20,
-        y: height - 30,
-        width: 400,
-        height: 18,
-        color: rgb(1, 1, 0), // yellow
-        opacity: 0.4,
-      })
+      console.log(`[annotatePdf] ${annotation.requirementId}: exactText=${annotation.exactText ? annotation.exactText.substring(0, 50) + '...' : 'NULL'}, textItems=${textItems.length}`)
 
-      page.drawText(`${annotation.requirementId} - Evidence on this page`, {
-        x: 25,
-        y: height - 26,
-        size: 8,
-        color: rgb(0.6, 0, 0),
-        opacity: 0.9,
-      })
+      if (!annotation.exactText) {
+        // No exact text to search — place a note in the right margin
+        const { width: pageWidth, height } = page.getSize()
+        page.drawText(`[${annotation.requirementId}]`, {
+          x: pageWidth - 75,
+          y: height - 25 - (noteIdx * 18),
+          size: 12,
+          color: rgb(0.8, 0, 0), // strong red
+          opacity: 1,
+        })
+        marginNoteOffset.set(pageIdx, noteIdx + 1)
+        continue
+      }
+
+      // Search for matching text items on the page
+      const searchTerms = extractSearchTerms(annotation.exactText)
+      const matchedItems = findMatchingTextItems(textItems, searchTerms)
+
+      if (matchedItems.length > 0) {
+        // Draw yellow highlight rectangles over matched text
+        for (const item of matchedItems) {
+          page.drawRectangle({
+            x: item.x - 1,
+            y: item.y - 2,
+            width: item.width + 2,
+            height: item.height + 4,
+            color: rgb(1, 1, 0), // yellow
+            opacity: 0.35,
+            borderWidth: 0,
+          })
+        }
+
+        // Add a REQ label in the right margin at the height of the first match
+        const firstMatch = matchedItems[0]
+        const { width: pageWidth } = page.getSize()
+        page.drawText(annotation.requirementId, {
+          x: pageWidth - 70,
+          y: firstMatch.y,
+          size: 12,
+          color: rgb(0, 0.5, 0), // green
+          opacity: 1,
+        })
+      } else {
+        // Fallback: no text match found — place note in right margin
+        const { width: pageWidth, height } = page.getSize()
+        page.drawText(`[${annotation.requirementId}?]`, {
+          x: pageWidth - 75,
+          y: height - 25 - (noteIdx * 18),
+          size: 12,
+          color: rgb(0.8, 0, 0), // strong red
+          opacity: 1,
+        })
+        marginNoteOffset.set(pageIdx, noteIdx + 1)
+      }
     }
 
     const annotatedBytes = await pdfDoc.save()
     return Buffer.from(annotatedBytes)
-  } catch {
+  } catch (err) {
+    console.error('[annotatePdf] Error:', err)
     return null
   }
+}
+
+/**
+ * Extract meaningful search terms from a requirement text.
+ * Splits into individual words and also keeps multi-word phrases.
+ */
+function extractSearchTerms(text: string): string[] {
+  // Clean the text: remove newlines, extra spaces
+  const cleaned = text.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim()
+
+  // Split into meaningful phrases (sentences or comma-separated chunks)
+  const phrases = cleaned.split(/[.,;]\s*/).filter(p => p.length > 3)
+
+  // Also extract individual significant words (>= 4 chars, not common stop words)
+  const stopWords = new Set([
+    'debe', 'para', 'como', 'será', 'este', 'esta', 'todo', 'cada', 'pueden',
+    'tiene', 'desde', 'hasta', 'with', 'that', 'this', 'from', 'have', 'will',
+    'been', 'they', 'their', 'which', 'must', 'should', 'including', 'incluir',
+    'mismo', 'donde', 'cuando', 'sobre', 'entre', 'forma', 'manera', 'también',
+    'además', 'siendo', 'sistema', 'general', 'principales', 'the', 'and', 'for',
+  ])
+  const words = cleaned
+    .split(/\s+/)
+    .map(w => w.replace(/[^a-záéíóúñA-ZÁÉÍÓÚÑ0-9\-\/]/g, ''))
+    .filter(w => w.length >= 4 && !stopWords.has(w.toLowerCase()))
+
+  return [...phrases, ...words]
+}
+
+/**
+ * Find text items on a page that match any of the search terms.
+ * Uses case-insensitive substring matching with relaxed criteria.
+ */
+function findMatchingTextItems(
+  textItems: Array<{ str: string; x: number; y: number; width: number; height: number }>,
+  searchTerms: string[]
+): Array<{ x: number; y: number; width: number; height: number }> {
+  const matched: Array<{ x: number; y: number; width: number; height: number }> = []
+  const alreadyHighlighted = new Set<number>() // track indices to avoid double-highlighting
+
+  // Extract unique meaningful words from all terms (4+ chars)
+  const allWords = new Set<string>()
+  for (const term of searchTerms) {
+    for (const word of term.toLowerCase().split(/\s+/)) {
+      const clean = word.replace(/[^a-záéíóúñ0-9\-\/]/g, '')
+      if (clean.length >= 4) allWords.add(clean)
+    }
+  }
+  const uniqueWords = [...allWords]
+
+  // For each text item, check how many search words it contains
+  for (let i = 0; i < textItems.length; i++) {
+    if (alreadyHighlighted.has(i)) continue
+    const itemText = textItems[i].str.toLowerCase()
+    if (itemText.length < 3) continue // skip very short fragments
+
+    let matchScore = 0
+    for (const word of uniqueWords) {
+      if (itemText.includes(word)) {
+        matchScore++
+      }
+    }
+
+    // Highlight if at least 1 word matches for short items,
+    // or if the item contains a significant keyword
+    if (matchScore >= 1) {
+      matched.push(textItems[i])
+      alreadyHighlighted.add(i)
+    }
+  }
+
+  // Limit to max 20 highlights per requirement to avoid over-highlighting
+  return matched.slice(0, 20)
 }

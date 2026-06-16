@@ -75,7 +75,12 @@
     "uploading": "Uploading...",
     "clearDone": "Clear done",
     "filterByName": "Filter documents by name...",
-    "duplicateWarning": "If a file with the same name already exists, only the most recent version will be used for analysis."
+    "duplicateWarning": "If a file with the same name already exists, only the most recent version will be used for analysis.",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "deleteSelected": "Delete selected ({count})",
+    "deleting": "Deleting...",
+    "confirmBulkDelete": "Are you sure you want to delete {count} document(s)? This cannot be undone."
   },
   "search": {
     "title": "Semantic Search",

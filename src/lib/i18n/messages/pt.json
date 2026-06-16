@@ -75,7 +75,12 @@
     "uploading": "Enviando...",
     "clearDone": "Limpar concluidos",
     "filterByName": "Filtrar documentos por nome...",
-    "duplicateWarning": "Se um arquivo com o mesmo nome ja existir, apenas a versao mais recente sera usada para a analise."
+    "duplicateWarning": "Se um arquivo com o mesmo nome ja existir, apenas a versao mais recente sera usada para a analise.",
+    "selectAll": "Selecionar tudo",
+    "deselectAll": "Desmarcar tudo",
+    "deleteSelected": "Excluir selecionados ({count})",
+    "deleting": "Excluindo...",
+    "confirmBulkDelete": "Tem certeza que deseja excluir {count} documento(s)? Esta acao nao pode ser desfeita."
   },
   "search": {
     "title": "Busca Semantica",

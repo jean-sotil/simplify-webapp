@@ -1,3 +1,4 @@
+// Force recompile: 2026-06-15T22:00
 'use server'
 
 import { revalidatePath } from 'next/cache'
@@ -44,6 +45,7 @@ async function buildRequirementTraceMap(
 
     for (const ettDoc of ettDocuments) {
       const extracted = extractRequirementsFromETT(ettDoc.extractedText, ettDoc.id, '06.11')
+      console.log(`[buildRequirementTraceMap] ETT ${ettDoc.id.substring(0,8)}: extracted ${extracted.length} requirements from ${ettDoc.extractedText.length} chars`)
       for (const req of extracted) {
         requirementCandidates.push({
           sourceDocumentId: req.sourceDocumentId,
@@ -53,6 +55,7 @@ async function buildRequirementTraceMap(
       }
     }
 
+    console.log(`[buildRequirementTraceMap] Total requirements: ${requirementCandidates.length}`)
     if (requirementCandidates.length === 0) {
       return []
     }
@@ -121,7 +124,7 @@ async function buildRequirementTraceMap(
 // triggerAnalysis
 // ---------------------------------------------------------------------------
 
-export async function triggerAnalysis(projectId: string, selectedDocuments: unknown[], options?: { mock?: boolean }) {
+export async function triggerAnalysis(projectId: string, selectedDocuments: unknown[]) {
   const user = await requireAuth()
 
   // Validate selected documents shape
@@ -173,15 +176,6 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   const requirements = await buildRequirementTraceMap(ettDocsForTracing, compareDocumentIds, supabase)
 
-  // Enrich matched hardware document URLs
-  const requirementsWithUrls = requirements.map((req) => ({
-    ...req,
-    matchedHardwareDocuments: req.matchedHardwareDocuments.map((match) => ({
-      ...match,
-      originalFileUrl: urlByDocumentId.get(match.documentId) ?? '',
-    })),
-  }))
-
   // Upsert analysis_results row (allows re-running analysis for same project)
   const { data: analysis, error: insertError } = await supabaseAdmin
     .from('analysis_results')
@@ -208,28 +202,24 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
-    // Build documents array with their matched requirements
-    const documents = requirementsWithUrls.length > 0
-      ? enrichedDocuments
-          .filter(d => d.documentType === 'hardware' || d.documentType === 'software')
-          .map(doc => ({
-            documentId: doc.id,
-            filename: doc.filename,
-            originalFileUrl: doc.url,
-            documentType: doc.documentType,
-            matchedRequirements: requirementsWithUrls
-              .filter(req => req.matchedHardwareDocuments.some(m => m.documentId === doc.id))
-              .map(req => {
-                const match = req.matchedHardwareDocuments.find(m => m.documentId === doc.id)
-                return {
-                  requirementId: req.requirementId,
-                  text: req.text,
-                  pageNumber: match?.pageNumber ?? null,
-                  similarityScore: match?.similarityScore ?? 0,
-                }
-              }),
-          }))
-      : []
+    // Build documents array — send ALL requirements to EACH hardware/software document
+    // Let the LLM decide which requirements each document satisfies
+    const allRequirements = requirements.map(req => ({
+      requirementId: req.requirementId,
+      text: req.text,
+      pageNumber: null,
+      similarityScore: 0,
+    }))
+
+    const documents = enrichedDocuments
+      .filter(d => d.documentType === 'hardware' || d.documentType === 'software')
+      .map(doc => ({
+        documentId: doc.id,
+        filename: doc.filename,
+        originalFileUrl: doc.url,
+        documentType: doc.documentType,
+        matchedRequirements: allRequirements,
+      }))
 
     // Fire-and-forget: start analysis in background, don't block UI
     // The AnalysisResults component polls every 5s to show progress
@@ -240,7 +230,7 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
         documents,
         analysisId: analysis.id,
         projectId,
-        mock: options?.mock ?? false,
+        ettText: ettDocsForTracing[0]?.extractedText ?? '',
       }),
     }).catch((err) => {
       console.error('[triggerAnalysis] Background analysis call failed:', err)

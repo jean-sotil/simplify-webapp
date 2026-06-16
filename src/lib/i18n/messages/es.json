@@ -75,7 +75,12 @@
     "uploading": "Subiendo...",
     "clearDone": "Limpiar completados",
     "filterByName": "Filtrar documentos por nombre...",
-    "duplicateWarning": "Si existe un archivo con el mismo nombre, solo se usará la versión más reciente para el análisis."
+    "duplicateWarning": "Si existe un archivo con el mismo nombre, solo se usará la versión más reciente para el análisis.",
+    "selectAll": "Seleccionar todo",
+    "deselectAll": "Deseleccionar todo",
+    "deleteSelected": "Eliminar seleccionados ({count})",
+    "deleting": "Eliminando...",
+    "confirmBulkDelete": "¿Seguro que deseas eliminar {count} documento(s)? Esta acción no se puede deshacer."
   },
   "search": {
     "title": "Búsqueda Semántica",

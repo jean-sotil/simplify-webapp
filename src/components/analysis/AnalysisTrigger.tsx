@@ -17,13 +17,12 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
   const [isPending, startTransition] = useTransition()
   const [triggerError, setTriggerError] = useState<string | null>(null)
   const [triggered, setTriggered] = useState(false)
-  const [useMock, setUseMock] = useState(false)
   const router = useRouter()
 
   function handleRunAnalysis(selectedDocuments: SelectedDocument[]) {
     setTriggerError(null)
     startTransition(async () => {
-      const result = await triggerAnalysis(projectId, selectedDocuments, { mock: useMock })
+      const result = await triggerAnalysis(projectId, selectedDocuments)
       if ('error' in result && result.error) {
         const message =
           typeof result.error === 'string'
@@ -32,7 +31,6 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
         setTriggerError(message)
       } else {
         setTriggered(true)
-        // Refresh page so AnalysisResults picks up the "processing" status
         router.refresh()
       }
     })
@@ -48,22 +46,6 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
 
   return (
     <div>
-      {/* Mock toggle */}
-      <div
-        className="mb-4 flex items-center gap-2 p-3 rounded-sm border"
-        style={{ borderColor: 'var(--color-hairline)' }}
-      >
-        <input
-          type="checkbox"
-          id="mock-toggle"
-          checked={useMock}
-          onChange={(e) => setUseMock(e.target.checked)}
-        />
-        <label htmlFor="mock-toggle" className="text-sm" style={{ color: 'var(--color-mute)' }}>
-          {t('mockMode')}
-        </label>
-      </div>
-
       {isPending && (
         <p
           role="status"
@@ -71,7 +53,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
           className="text-sm mb-4"
           style={{ color: 'var(--color-mute)' }}
         >
-          {useMock ? t('mockTriggering') : t('triggering')}
+          {t('triggering')}
         </p>
       )}
       {triggerError && (

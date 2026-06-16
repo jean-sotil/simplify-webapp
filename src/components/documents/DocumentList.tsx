@@ -27,6 +27,8 @@ export function DocumentList({ documents, lang }: Props) {
   const t = useTranslations('documents')
   const [filter, setFilter] = useState<'all' | 'ett' | 'hardware' | 'software'>('all')
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [deleting, setDeleting] = useState(false)
 
   const filteredDocs = documents.filter(doc => {
     if (filter !== 'all' && doc.document_type !== filter) return false
@@ -39,6 +41,38 @@ export function DocumentList({ documents, lang }: Props) {
     ett: documents.filter(d => d.document_type === 'ett').length,
     hardware: documents.filter(d => d.document_type === 'hardware').length,
     software: documents.filter(d => d.document_type === 'software').length,
+  }
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function selectAll() {
+    setSelected(new Set(filteredDocs.map(d => d.id)))
+  }
+
+  function deselectAll() {
+    setSelected(new Set())
+  }
+
+  async function handleBulkDelete() {
+    if (selected.size === 0) return
+    const confirmed = confirm(t('confirmBulkDelete', { count: selected.size }))
+    if (!confirmed) return
+
+    setDeleting(true)
+    try {
+      const ids = Array.from(selected)
+      await Promise.all(ids.map(id => fetch(`/api/documents/${id}`, { method: 'DELETE' })))
+      window.location.reload()
+    } catch {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -81,14 +115,49 @@ export function DocumentList({ documents, lang }: Props) {
         autoComplete="off"
       />
 
+      {/* Bulk actions bar */}
+      {filteredDocs.length > 0 && (
+        <div className="flex items-center gap-3 mb-3">
+          <button
+            type="button"
+            onClick={selected.size === filteredDocs.length ? deselectAll : selectAll}
+            className="text-xs px-3 py-1 rounded-sm border hover:opacity-70"
+            style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+          >
+            {selected.size === filteredDocs.length ? t('deselectAll') : t('selectAll')}
+          </button>
+
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={deleting}
+              className="text-xs px-3 py-1 rounded-sm border transition-colors hover:bg-red-50 disabled:opacity-50"
+              style={{ borderColor: 'var(--color-accent-red)', color: 'var(--color-accent-red)' }}
+            >
+              {deleting
+                ? t('deleting')
+                : t('deleteSelected', { count: selected.size })}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Document list */}
       {filteredDocs.length > 0 ? (
         <ul className="space-y-2">
           {filteredDocs.map((doc) => (
-            <li key={doc.id}>
+            <li key={doc.id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selected.has(doc.id)}
+                onChange={() => toggleSelect(doc.id)}
+                className="shrink-0 ml-1"
+                aria-label={`Select ${doc.filename}`}
+              />
               <a
                 href={`/${lang}/documents/${doc.id}`}
-                className="flex items-center justify-between border rounded-md px-4 py-3 hover:bg-gray-50 transition-colors"
+                className="flex-1 flex items-center justify-between border rounded-md px-4 py-3 hover:bg-gray-50 transition-colors"
                 style={{ borderColor: 'var(--color-hairline)' }}
               >
                 <div className="flex items-center gap-3 min-w-0">
