@@ -80,14 +80,12 @@ export async function searchChunksAction(
       return { data: results }
     }
 
-    // Search across all user's documents (with optional type filter)
-    // Use a broader search across all chunks
+    // Search across all documents (with optional type filter)
     let docFilter: string[] = []
     if (options?.documentType) {
       const { data: filteredDocs } = await supabaseAdmin
         .from('documents')
         .select('id')
-        .eq('uploaded_by', user.id)
         .eq('document_type', options.documentType)
 
       docFilter = (filteredDocs || []).map(d => d.id)
@@ -95,7 +93,6 @@ export async function searchChunksAction(
       const { data: allDocs } = await supabaseAdmin
         .from('documents')
         .select('id')
-        .eq('uploaded_by', user.id)
         .neq('document_type', 'ett')
 
       docFilter = (allDocs || []).map(d => d.id)
