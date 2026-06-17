@@ -1,11 +1,12 @@
 /**
  * PDF text chunking utilities.
- * Splits extracted PDF text into page-level chunks suitable for individual embeddings.
+ * Splits extracted PDF text into chunks optimized for semantic search.
  *
  * Strategy:
  * - Split by page markers (--- Page N ---) inserted by extractTextFromPdf
- * - If a page is too long (> MAX_CHUNK_CHARS), split further by paragraphs
- * - Overlap between splits for context continuity
+ * - Further split pages into smaller chunks (~800 chars) for precise search
+ * - Overlap between chunks for context continuity
+ * - Minimum chunk size to avoid garbage embeddings
  */
 
 export interface PdfChunk {
@@ -17,11 +18,11 @@ export interface PdfChunk {
   text: string
 }
 
-// Target chunk size for embeddings. text-embedding-3-large handles ~8k tokens (~32k chars).
-// We aim for ~2000 chars per chunk for good semantic density.
-const TARGET_CHUNK_CHARS = 2000
-const MAX_CHUNK_CHARS = 3500
-const OVERLAP_CHARS = 200
+// Smaller chunks = more precise search results
+const TARGET_CHUNK_CHARS = 800
+const MAX_CHUNK_CHARS = 1200
+const OVERLAP_CHARS = 150
+const MIN_CHUNK_CHARS = 50
 
 const PAGE_MARKER_PATTERN = /^--- Page (\d+) ---$/m
 
@@ -39,25 +40,27 @@ export function chunkPdfText(extractedText: string): PdfChunk[] {
   let chunkIndex = 0
 
   for (const segment of pageSegments) {
-    if (!segment.text.trim()) continue
+    const trimmed = segment.text.trim()
+    if (!trimmed || trimmed.length < MIN_CHUNK_CHARS) continue
 
-    if (segment.text.length <= MAX_CHUNK_CHARS) {
+    if (trimmed.length <= MAX_CHUNK_CHARS) {
       // Page fits in a single chunk
       chunks.push({
         chunkIndex,
         pageNumber: segment.pageNumber,
-        text: segment.text.trim(),
+        text: trimmed,
       })
       chunkIndex++
     } else {
       // Page is too long — split into sub-chunks with overlap
-      const subChunks = splitLongText(segment.text, TARGET_CHUNK_CHARS, OVERLAP_CHARS)
+      const subChunks = splitLongText(trimmed, TARGET_CHUNK_CHARS, OVERLAP_CHARS)
       for (const subText of subChunks) {
-        if (!subText.trim()) continue
+        const sub = subText.trim()
+        if (sub.length < MIN_CHUNK_CHARS) continue
         chunks.push({
           chunkIndex,
           pageNumber: segment.pageNumber,
-          text: subText.trim(),
+          text: sub,
         })
         chunkIndex++
       }
@@ -77,7 +80,6 @@ function splitByPages(text: string): PageSegment[] {
   const segments: PageSegment[] = []
 
   // parts alternates: [textBefore, pageNum, pageText, pageNum, pageText, ...]
-  // If there's text before the first page marker, it's preamble
   if (parts[0]?.trim()) {
     segments.push({ pageNumber: null, text: parts[0] })
   }
@@ -97,22 +99,24 @@ function splitByPages(text: string): PageSegment[] {
 }
 
 /**
- * Splits a long text into chunks of approximately targetSize chars,
- * splitting at paragraph boundaries when possible, with overlap.
+ * Splits a long text into chunks of approximately targetSize chars.
+ * Tries to split at sentence boundaries (. ! ? \n) for semantic coherence.
+ * Includes overlap for context continuity.
  */
 function splitLongText(text: string, targetSize: number, overlap: number): string[] {
-  const paragraphs = text.split(/\n{2,}/)
+  // Split at sentence boundaries
+  const sentences = text.split(/(?<=[.!?\n])\s+/)
   const chunks: string[] = []
   let current = ''
 
-  for (const para of paragraphs) {
-    if (current.length + para.length + 1 > targetSize && current.length > 0) {
+  for (const sentence of sentences) {
+    if (current.length + sentence.length + 1 > targetSize && current.length > 0) {
       chunks.push(current)
       // Start new chunk with overlap from end of previous
       const overlapText = current.slice(-overlap)
-      current = overlapText + '\n\n' + para
+      current = overlapText + ' ' + sentence
     } else {
-      current = current ? current + '\n\n' + para : para
+      current = current ? current + ' ' + sentence : sentence
     }
   }
 
