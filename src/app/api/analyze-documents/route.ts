@@ -100,88 +100,20 @@ export async function POST(request: NextRequest) {
           console.log(`[analyze] Extracted ${allReqs.length} requirements from ETT`)
 
           if (allReqs.length > 0) {
-            // Smart pre-routing: use chunk embeddings to determine which reqs are relevant for each document
-            // This avoids sending all 72 reqs to every document (saves tokens, improves precision)
-            await updateStage('Routing requirements to documents...')
-
-            // Get chunks with embeddings for all hardware/software documents
-            const hwDocIds = documents.map(d => d.documentId)
-            const { data: chunks } = await supabaseAdmin
-              .from('document_chunks')
-              .select('id, document_id, chunk_text, embedding')
-              .in('document_id', hwDocIds)
-
-            if (chunks && chunks.length > 0) {
-              // Generate embeddings for all requirements in one batch
-              const { generateEmbeddingsBatch } = await import('@/lib/ai/openai')
-              const reqTexts = allReqs.map(r => r.text)
-              const reqEmbeddings = await generateEmbeddingsBatch(reqTexts)
-
-              console.log(`[analyze] Generated ${reqEmbeddings.length} req embeddings, searching against ${chunks.length} chunks`)
-
-              // For each document, find which requirements are relevant (similarity > 0.3)
-              const ROUTING_THRESHOLD = 0.30
-              const MIN_REQS_PER_DOC = 5 // Always send at least 5 reqs to each doc
-
-              for (const doc of documents) {
-                const docChunks = chunks.filter(c => c.document_id === doc.documentId && c.embedding)
-                if (docChunks.length === 0) {
-                  // No chunks = send all reqs (fallback)
-                  doc.matchedRequirements = allReqs.map(r => ({
-                    requirementId: r.requirementId,
-                    text: r.text,
-                    partida: r.partida,
-                    partidaDesc: r.partidaDesc,
-                    pageNumber: null as number | null,
-                    similarityScore: 0,
-                  }))
-                  continue
-                }
-
-                // Calculate max similarity between each req and this doc's chunks
-                const reqScores: Array<{ idx: number; score: number }> = []
-                for (let i = 0; i < reqEmbeddings.length; i++) {
-                  let maxSim = 0
-                  for (const chunk of docChunks) {
-                    const sim = cosineSimilarity(reqEmbeddings[i], chunk.embedding)
-                    if (sim > maxSim) maxSim = sim
-                  }
-                  reqScores.push({ idx: i, score: maxSim })
-                }
-
-                // Sort by score and take top relevant reqs (above threshold OR top N)
-                reqScores.sort((a, b) => b.score - a.score)
-                const relevant = reqScores.filter(r => r.score >= ROUTING_THRESHOLD)
-                const selected = relevant.length >= MIN_REQS_PER_DOC
-                  ? relevant
-                  : reqScores.slice(0, MIN_REQS_PER_DOC)
-
-                doc.matchedRequirements = selected.map(s => ({
-                  requirementId: allReqs[s.idx].requirementId,
-                  text: allReqs[s.idx].text,
-                  partida: allReqs[s.idx].partida,
-                  partidaDesc: allReqs[s.idx].partidaDesc,
-                  pageNumber: null as number | null,
-                  similarityScore: s.score,
-                }))
-
-                console.log(`[analyze] ${doc.filename}: ${doc.matchedRequirements.length}/${allReqs.length} reqs routed (threshold ${ROUTING_THRESHOLD})`)
-              }
-            } else {
-              // No chunks available — fallback to sending all reqs to all docs
-              console.log(`[analyze] No chunks found, sending all ${allReqs.length} reqs to all docs`)
-              const reqsForDocs = allReqs.map((r) => ({
-                requirementId: r.requirementId,
-                text: r.text,
-                partida: r.partida,
-                partidaDesc: r.partidaDesc,
-                pageNumber: null as number | null,
-                similarityScore: 0,
-              }))
-              for (const doc of documents) {
-                doc.matchedRequirements = reqsForDocs
-              }
+            // Send all requirements to all documents
+            // (routing optimization deferred due to bundler compatibility issues)
+            const reqsForDocs = allReqs.map((r) => ({
+              requirementId: r.requirementId,
+              text: r.text,
+              partida: r.partida,
+              partidaDesc: r.partidaDesc,
+              pageNumber: null as number | null,
+              similarityScore: 0,
+            }))
+            for (const doc of documents) {
+              doc.matchedRequirements = reqsForDocs
             }
+            console.log(`[analyze] Assigned ${allReqs.length} requirements to ${documents.length} documents`)
           }
         } else {
           console.log('[analyze] No ETT document with extracted_text found')
@@ -667,17 +599,3 @@ function findDirectMatch(
 // ---------------------------------------------------------------------------
 // Cosine similarity for embedding vectors
 // ---------------------------------------------------------------------------
-
-function cosineSimilarity(a: number[], b: number[]): number {
-  if (!a || !b || a.length !== b.length) return 0
-  let dotProduct = 0
-  let normA = 0
-  let normB = 0
-  for (let i = 0; i < a.length; i++) {
-    dotProduct += a[i] * b[i]
-    normA += a[i] * a[i]
-    normB += b[i] * b[i]
-  }
-  const denom = Math.sqrt(normA) * Math.sqrt(normB)
-  return denom === 0 ? 0 : dotProduct / denom
-}
