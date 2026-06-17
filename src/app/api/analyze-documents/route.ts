@@ -143,6 +143,57 @@ export async function POST(request: NextRequest) {
     }).eq('id', analysisId)
   }
 
+  // Step 2: Smart routing — use chunk text to determine which reqs are relevant for each doc
+  if (documents.some(d => d.matchedRequirements.length > 10)) {
+    console.log('[analyze] Starting routing optimization...')
+    try {
+      const hwDocIds = documents.map(d => d.documentId)
+      console.log(`[analyze] Querying chunks for ${hwDocIds.length} documents...`)
+      const { data: chunks, error: chunksError } = await supabaseAdmin
+        .from('document_chunks')
+        .select('id, document_id, chunk_text')
+        .in('document_id', hwDocIds)
+
+      console.log(`[analyze] Chunks query result: ${chunks?.length ?? 0} chunks, error: ${chunksError?.message ?? 'none'}`)
+
+      if (chunks && chunks.length > 0) {
+        const MIN_REQS_PER_DOC = 20
+
+        for (const doc of documents) {
+          const docChunks = chunks.filter(c => c.document_id === doc.documentId)
+          if (docChunks.length === 0) {
+            console.log(`[analyze] ${doc.filename}: no chunks, keeping all ${doc.matchedRequirements.length} reqs`)
+            continue
+          }
+
+          const docText = docChunks.map(c => c.chunk_text).join(' ').toLowerCase()
+          const allReqs = doc.matchedRequirements
+
+          // Score each requirement by keyword overlap
+          const scored = allReqs.map((req, idx) => {
+            const words = req.text.toLowerCase().split(/\s+/).filter(w => w.length >= 4)
+            const matchCount = words.filter(w => docText.includes(w)).length
+            return { idx, score: words.length > 0 ? matchCount / words.length : 0 }
+          })
+
+          scored.sort((a, b) => b.score - a.score)
+          const withMatches = scored.filter(s => s.score > 0)
+          const selected = withMatches.length >= MIN_REQS_PER_DOC ? withMatches : scored.slice(0, Math.max(MIN_REQS_PER_DOC, withMatches.length))
+
+          doc.matchedRequirements = selected.map(s => allReqs[s.idx])
+          console.log(`[analyze] ${doc.filename}: ${doc.matchedRequirements.length}/${allReqs.length} reqs after routing (${docChunks.length} chunks)`)
+        }
+        console.log('[analyze] Routing complete.')
+      } else {
+        console.log('[analyze] FALLBACK: No chunks found, all docs keep all reqs')
+      }
+    } catch (routeErr) {
+      console.error('[analyze] FALLBACK: Routing failed:', routeErr instanceof Error ? routeErr.message : routeErr)
+    }
+  } else {
+    console.log('[analyze] Routing skipped: docs already have <= 10 reqs')
+  }
+
   // Process each document with LLM
   const results: ProcessedDocument[] = []
   const totalDocs = documents.length
