@@ -35,8 +35,8 @@ export async function searchChunksAction(
     // Generate embedding for the query
     const queryEmbedding = await generateEmbedding(query)
 
-    const limit = options?.limit ?? 10
-    const threshold = 0.25
+    const limit = options?.limit ?? 8
+    const threshold = 0.45
 
     // If document IDs are provided, search only in those documents
     if (options?.documentIds && options.documentIds.length > 0) {
