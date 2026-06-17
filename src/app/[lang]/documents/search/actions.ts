@@ -39,79 +39,64 @@ export async function searchChunksAction(
     const limit = options?.limit ?? 8
     const threshold = options?.threshold ?? 0.45
 
-    // If document IDs are provided, search only in those documents
-    if (options?.documentIds && options.documentIds.length > 0) {
-      const { data, error } = await supabaseAdmin.rpc('search_chunks_by_embedding', {
-        query_embedding: queryEmbedding,
-        doc_ids: options.documentIds,
-        match_count: limit,
-        similarity_threshold: threshold,
-      })
-
-      if (error) return { error: error.message }
-
-      // Enrich with document info
-      const docIds = [...new Set((data || []).map((r: { document_id: string }) => r.document_id))]
-      const { data: docs } = await supabaseAdmin
-        .from('documents')
-        .select('id, filename, document_type')
-        .in('id', docIds)
-
-      const docMap = new Map((docs || []).map(d => [d.id, d]))
-
-      const results: ChunkSearchResult[] = (data || []).map((row: {
-        chunk_id: string
-        document_id: string
-        page_number: number | null
-        chunk_text: string
-        similarity: number
-      }) => {
-        const doc = docMap.get(row.document_id)
-        return {
-          chunkId: row.chunk_id,
-          documentId: row.document_id,
-          filename: doc?.filename ?? 'Unknown',
-          documentType: doc?.document_type ?? 'hardware',
-          pageNumber: row.page_number,
-          chunkText: row.chunk_text,
-          similarity: row.similarity,
-        }
-      })
-
-      return { data: results }
-    }
-
-    // Search across all documents (with optional type filter)
+    // Determine which documents to search
     let docFilter: string[] = []
-    if (options?.documentType) {
-      const { data: filteredDocs } = await supabaseAdmin
-        .from('documents')
-        .select('id')
-        .eq('document_type', options.documentType)
-
-      docFilter = (filteredDocs || []).map(d => d.id)
+    if (options?.documentIds && options.documentIds.length > 0) {
+      docFilter = options.documentIds
     } else {
       const { data: allDocs } = await supabaseAdmin
         .from('documents')
         .select('id')
         .neq('document_type', 'ett')
-
       docFilter = (allDocs || []).map(d => d.id)
     }
 
     if (docFilter.length === 0) return { data: [] }
 
-    const { data, error } = await supabaseAdmin.rpc('search_chunks_by_embedding', {
-      query_embedding: queryEmbedding,
-      doc_ids: docFilter,
-      match_count: limit,
-      similarity_threshold: threshold,
-    })
+    // Hybrid search: text match + semantic search in parallel
+    const [textResults, semanticResults] = await Promise.all([
+      // Pass 1: Exact text search (ILIKE) — catches literal matches
+      supabaseAdmin
+        .from('document_chunks')
+        .select('id, document_id, page_number, chunk_text')
+        .in('document_id', docFilter)
+        .ilike('chunk_text', `%${query.replace(/%/g, '')}%`)
+        .limit(limit),
 
-    if (error) return { error: error.message }
+      // Pass 2: Semantic search (embeddings) — catches meaning matches
+      supabaseAdmin.rpc('search_chunks_by_embedding', {
+        query_embedding: queryEmbedding,
+        doc_ids: docFilter,
+        match_count: limit,
+        similarity_threshold: threshold,
+      }),
+    ])
+
+    // Merge results: text matches first (score 1.0), then semantic (by similarity)
+    const seen = new Set<string>()
+    const mergedResults: Array<{ chunk_id: string; document_id: string; page_number: number | null; chunk_text: string; similarity: number }> = []
+
+    // Add text matches with high similarity score
+    for (const row of (textResults.data || [])) {
+      if (!seen.has(row.id)) {
+        seen.add(row.id)
+        mergedResults.push({ chunk_id: row.id, document_id: row.document_id, page_number: row.page_number, chunk_text: row.chunk_text, similarity: 0.99 })
+      }
+    }
+
+    // Add semantic matches (skip duplicates)
+    for (const row of (semanticResults.data || [])) {
+      if (!seen.has(row.chunk_id)) {
+        seen.add(row.chunk_id)
+        mergedResults.push(row)
+      }
+    }
+
+    // Limit to requested count
+    const finalResults = mergedResults.slice(0, limit)
 
     // Enrich with document info
-    const docIds = [...new Set((data || []).map((r: { document_id: string }) => r.document_id))]
+    const docIds = [...new Set(finalResults.map(r => r.document_id))]
     const { data: docs } = await supabaseAdmin
       .from('documents')
       .select('id, filename, document_type')
@@ -119,13 +104,7 @@ export async function searchChunksAction(
 
     const docMap = new Map((docs || []).map(d => [d.id, d]))
 
-    const results: ChunkSearchResult[] = (data || []).map((row: {
-      chunk_id: string
-      document_id: string
-      page_number: number | null
-      chunk_text: string
-      similarity: number
-    }) => {
+    const results: ChunkSearchResult[] = finalResults.map(row => {
       const doc = docMap.get(row.document_id)
       return {
         chunkId: row.chunk_id,

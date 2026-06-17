@@ -31,7 +31,7 @@ export default async function DocumentSearchPage({ params }: Props) {
         </p>
       </div>
 
-      <SemanticSearch />
+      <SemanticSearch lang={lang} />
     </main>
   )
 }

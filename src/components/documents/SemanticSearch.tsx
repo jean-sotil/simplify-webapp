@@ -10,7 +10,7 @@ interface DocumentRow {
   document_type: string
 }
 
-export function SemanticSearch() {
+export function SemanticSearch({ lang }: { lang?: string }) {
   const t = useTranslations('search')
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<ChunkSearchResult[]>([])
@@ -198,9 +198,15 @@ export function SemanticSearch() {
                     >
                       {result.documentType === 'ett' ? 'ETT' : result.documentType === 'hardware' ? 'HW' : 'SW'}
                     </span>
-                    <span className="text-sm font-medium truncate" style={{ color: 'var(--color-ink)' }}>
+                    <a
+                      href={`/${lang || 'en'}/documents/${result.documentId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-medium truncate underline-offset-2 hover:underline"
+                      style={{ color: 'var(--color-ink)' }}
+                    >
                       {result.filename}
-                    </span>
+                    </a>
                     {result.pageNumber && (
                       <span className="text-xs" style={{ color: 'var(--color-mute)' }}>
                         {t('page')} {result.pageNumber}
