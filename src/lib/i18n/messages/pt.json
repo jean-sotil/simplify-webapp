@@ -94,7 +94,8 @@
     "clearFilter": "Limpar filtro",
     "hideFilter": "Ocultar filtro de documentos",
     "match": "correspondencia",
-    "page": "Pagina"
+    "page": "Pagina",
+    "precision": "Precisao"
   },
   "analysis": {
     "title": "Analise de Documentos",

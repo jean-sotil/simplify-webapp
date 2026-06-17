@@ -19,6 +19,7 @@ export function SemanticSearch() {
   const [documents, setDocuments] = useState<DocumentRow[]>([])
   const [selectedDocIds, setSelectedDocIds] = useState<Set<string>>(new Set())
   const [showDocFilter, setShowDocFilter] = useState(false)
+  const [precision, setPrecision] = useState(0.45)
 
   // Load documents for the filter
   useEffect(() => {
@@ -40,8 +41,8 @@ export function SemanticSearch() {
     setError('')
 
     const options = selectedDocIds.size > 0
-      ? { documentIds: Array.from(selectedDocIds) }
-      : undefined
+      ? { documentIds: Array.from(selectedDocIds), threshold: precision }
+      : { threshold: precision }
 
     const result = await searchChunksAction(query, options)
 
@@ -138,6 +139,26 @@ export function SemanticSearch() {
         >
           {status === 'searching' ? t('searching') : t('button')}
         </button>
+
+        {/* Precision slider */}
+        <div className="flex items-center gap-3 mt-3">
+          <label htmlFor="precision-slider" className="text-xs" style={{ color: 'var(--color-mute)' }}>
+            {t('precision')}:
+          </label>
+          <input
+            id="precision-slider"
+            type="range"
+            min="0.2"
+            max="0.8"
+            step="0.05"
+            value={precision}
+            onChange={e => setPrecision(parseFloat(e.target.value))}
+            className="flex-1 h-1 accent-[var(--color-primary)]"
+          />
+          <span className="text-xs font-medium w-10 text-right" style={{ color: 'var(--color-ink)' }}>
+            {Math.round(precision * 100)}%
+          </span>
+        </div>
       </form>
 
       {/* Error */}

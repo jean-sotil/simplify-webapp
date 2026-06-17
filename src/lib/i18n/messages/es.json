@@ -94,7 +94,8 @@
     "clearFilter": "Limpiar filtro",
     "hideFilter": "Ocultar filtro de documentos",
     "match": "coincidencia",
-    "page": "Página"
+    "page": "Pagina",
+    "precision": "Precision"
   },
   "analysis": {
     "title": "Análisis de Documentos",

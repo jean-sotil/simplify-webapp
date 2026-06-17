@@ -94,7 +94,8 @@
     "clearFilter": "Clear filter",
     "hideFilter": "Hide document filter",
     "match": "match",
-    "page": "Page"
+    "page": "Page",
+    "precision": "Precision"
   },
   "analysis": {
     "title": "Document Analysis",
