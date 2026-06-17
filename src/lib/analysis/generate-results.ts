@@ -180,16 +180,7 @@ async function generateComplianceExcel(processedDocs: ProcessedDocument[], proje
       })
     }
 
-    // Copy merged cells from template (rows 1-3)
-    const merges = (templateSheet as unknown as { _merges: Record<string, unknown> })._merges || {}
-    for (const mergeRef of Object.keys(merges)) {
-      try {
-        const rowNum = parseInt(mergeRef.replace(/[A-Z]/g, ''))
-        if (rowNum <= 3) {
-          ws.mergeCells(mergeRef)
-        }
-      } catch { /* skip */ }
-    }
+    // Copy merged cells from template (rows 1-3) — skipped, done manually per sheet
   }
 
   // Helper to copy data row style from template row 4
@@ -223,9 +214,13 @@ async function generateComplianceExcel(processedDocs: ProcessedDocument[], proje
     }
     const docsStr = [...matchedDocs].map(f => f.replace(/\.pdf$/i, '')).join(' / ')
 
-    // Fill header data (row 1 & 2)
+    // Fill header data (row 1 & 2) with merged cells
+    try { ws.mergeCells('B1:C1') } catch { /* already merged from template */ }
+    try { ws.mergeCells('D1:F1') } catch { /* already merged from template */ }
+    try { ws.mergeCells('B2:C2') } catch { /* already merged from template */ }
+    try { ws.mergeCells('D2:F2') } catch { /* already merged from template */ }
     ws.getCell('B1').value = `PARTIDAS: ${code}`
-    ws.getCell('D1').value = `Marca:`
+    ws.getCell('D1').value = `Marca: ${docsStr ? docsStr.split('/')[0]?.trim() : ''}`
     ws.getCell('B2').value = `DESCRIPCION: ${cleanText(partida.partidaDesc)}`
     ws.getCell('D2').value = `Modelo: ${docsStr}`
 
