@@ -95,19 +95,22 @@ export async function POST(request: NextRequest) {
   const projectName = project?.name ?? 'Analysis'
 
   // 3. Get sustento documents linked to requirements via sustento_links
-  const { data: sustentoLinkRows } = await supabaseAdmin
-    .from('sustento_links')
-    .select('document_id')
-    .eq('project_id', projectId)
-
-  const sustentoDocIds = [...new Set((sustentoLinkRows ?? []).map(r => r.document_id))]
+  // Only include sustento documents when generating from the sustento page
   let sustentoDocuments: Array<{ id: string; filename: string; original_file_url: string }> = []
-  if (sustentoDocIds.length > 0) {
-    const { data: sustentoDocs } = await supabaseAdmin
-      .from('documents')
-      .select('id, filename, original_file_url')
-      .in('id', sustentoDocIds)
-    sustentoDocuments = sustentoDocs ?? []
+  if (source === 'sustento') {
+    const { data: sustentoLinkRows } = await supabaseAdmin
+      .from('sustento_links')
+      .select('document_id')
+      .eq('project_id', projectId)
+
+    const sustentoDocIds = [...new Set((sustentoLinkRows ?? []).map(r => r.document_id))]
+    if (sustentoDocIds.length > 0) {
+      const { data: sustentoDocs } = await supabaseAdmin
+        .from('documents')
+        .select('id, filename, original_file_url')
+        .in('id', sustentoDocIds)
+      sustentoDocuments = sustentoDocs ?? []
+    }
   }
 
   console.log(`[carpeta-digital] Project: ${projectName}, Docs: ${processedDocs.length}, Sustento: ${sustentoDocuments.length}`)
@@ -447,7 +450,7 @@ export async function POST(request: NextRequest) {
     // Load sustento links to know which requirements are in each document
     const { data: sustentoLinksData } = await supabaseAdmin
       .from('sustento_links')
-      .select('document_id, requirement_ids')
+      .select('document_id, requirement_ids, requirement_matches')
       .eq('project_id', projectId)
 
     const reqTextMap = new Map<string, string>()
@@ -468,6 +471,7 @@ export async function POST(request: NextRequest) {
       // Get requirements linked to this sustento document
       const docLink = (sustentoLinksData ?? []).find(l => l.document_id === doc.id)
       const linkedReqIds = docLink?.requirement_ids ?? []
+      const reqMatches = (docLink?.requirement_matches ?? {}) as Record<string, string>
 
       const startPage = currentPageCount + 1
 
@@ -481,14 +485,14 @@ export async function POST(request: NextRequest) {
         const buffer = await res.arrayBuffer()
         const pdfBuffer = Buffer.from(buffer)
 
-        // Try unpdf (getDocumentProxy) for text coordinates — more reliable in serverless than pdfjs-dist direct
+        // Extract text positions using unpdf for coordinate-based annotation
         let textPositionsByPage = new Map<number, Array<{ str: string; x: number; y: number; width: number; height: number }>>()
         try {
           const { getDocumentProxy } = await import('unpdf')
           const pdfjsDoc = await getDocumentProxy(new Uint8Array(pdfBuffer))
           for (let p = 1; p <= pdfjsDoc.numPages; p++) {
-            const page = await pdfjsDoc.getPage(p)
-            const textContent = await page.getTextContent()
+            const pjPage = await pdfjsDoc.getPage(p)
+            const textContent = await pjPage.getTextContent()
             const items: Array<{ str: string; x: number; y: number; width: number; height: number }> = []
             for (const item of textContent.items) {
               if (!('str' in item) || !item.str.trim()) continue
@@ -502,107 +506,147 @@ export async function POST(request: NextRequest) {
           textPositionsByPage = new Map()
         }
 
-        // Load and annotate the PDF
+        // Load and annotate the PDF (same approach as analysis docs)
         const srcDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true })
         const boldFontEmbed = await srcDoc.embedFont(StandardFonts.HelveticaBold)
-        const highlightedItems = new Set<string>()
 
-        // First pass: find which page each requirement matches on
-        const reqPageMap = new Map<string, { pageIdx: number; matches: Array<{ x: number; y: number; width: number; height: number; key: string }> }>()
+        // Track highlighted items to avoid double-highlighting
+        const highlightedItemsByPage = new Map<number, Set<string>>()
+
+        // Build annotations per page using exactText from LLM
+        const annsByPage = new Map<number, Array<{ reqId: string; exactText: string }>>()
 
         for (const reqId of linkedReqIds) {
-          const reqText = reqTextMap.get(reqId) || ''
-          if (!reqText) continue
+          // Use exactText from LLM (requirement_matches) — this is the actual text found in the sustento doc
+          const exactText = reqMatches[reqId] || ''
+          if (!exactText) continue
 
-          const searchWords = reqText.toLowerCase().split(/\s+/).filter(w => w.length >= 4).slice(0, 12)
-          if (searchWords.length === 0) continue
+          // Strategy: concatenate all text items per page and search for the exactText substring
+          // Use a distinctive fragment from the middle/end of exactText (usually more specific)
+          const exactLower = exactText.toLowerCase().replace(/\s+/g, ' ').trim()
+          
+          // Try multiple fragments of different lengths to find the page
+          const fragments = [
+            exactLower.substring(0, 50),
+            exactLower.substring(0, 35),
+            exactLower.substring(0, 25),
+            // Also try from later in the text (more specific usually)
+            exactLower.length > 60 ? exactLower.substring(20, 60) : '',
+          ].filter(f => f.length >= 15)
 
-          // Minimum words required for a valid match (at least 30% of search words or 3, whichever is smaller)
-          const minMatchCount = Math.max(3, Math.ceil(searchWords.length * 0.3))
-
-          let bestMatch: { pageIdx: number; matches: Array<{ x: number; y: number; width: number; height: number; key: string }>; score: number } | null = null
+          let bestPage = -1
 
           for (let pageIdx = 0; pageIdx < srcDoc.getPageCount(); pageIdx++) {
             const pageNum = pageIdx + 1
             const textItems = textPositionsByPage.get(pageNum) || []
-
-            const matches: Array<{ x: number; y: number; width: number; height: number; key: string; score: number }> = []
-            for (const item of textItems) {
-              if (matches.length >= 5) break
-              const itemKey = `${item.x},${item.y},${item.str}`
-              if (highlightedItems.has(itemKey)) continue
-              const itemLower = item.str.toLowerCase()
-              const matchCount = searchWords.filter(w => itemLower.includes(w)).length
-              if (matchCount >= minMatchCount) {
-                matches.push({ ...item, key: itemKey, score: matchCount })
+            // Concatenate all text in the page
+            const pageText = textItems.map(item => item.str).join(' ').toLowerCase().replace(/\s+/g, ' ')
+            
+            // Try each fragment
+            for (const fragment of fragments) {
+              if (pageText.includes(fragment)) {
+                bestPage = pageNum
+                break
               }
             }
-
-            if (matches.length > 0) {
-              const totalScore = matches.reduce((sum, m) => sum + m.score, 0)
-              if (!bestMatch || totalScore > bestMatch.score) {
-                bestMatch = { pageIdx, matches, score: totalScore }
-              }
-            }
+            if (bestPage > 0) break
           }
 
-          if (bestMatch) {
-            for (const m of bestMatch.matches) highlightedItems.add(m.key)
-            reqPageMap.set(reqId, { pageIdx: bestMatch.pageIdx, matches: bestMatch.matches })
+          if (bestPage > 0) {
+            if (!annsByPage.has(bestPage)) annsByPage.set(bestPage, [])
+            annsByPage.get(bestPage)!.push({ reqId, exactText })
           }
         }
 
-        // Second pass: draw annotations with page-relative numbering
-        const pagePointCounters = new Map<number, number>()
-
-        for (const reqId of linkedReqIds) {
-          const entry = reqPageMap.get(reqId)
-          if (!entry) {
-            // Fallback for reqs not found
-            const page = srcDoc.getPage(0)
-            const { width: pageWidth, height: pgHeight } = page.getSize()
-            const fallbackCounter = (pagePointCounters.get(0) ?? 0) + 1
-            pagePointCounters.set(0, fallbackCounter)
-            const fallbackY = pgHeight - 60 - ((fallbackCounter - 1) * 50)
-            if (fallbackY > 50) {
-              page.drawRectangle({ x: 50, y: fallbackY - 5, width: pageWidth - 100, height: 35, color: rgb(1, 1, 0), opacity: 0.2 })
-              page.drawRectangle({ x: 47, y: fallbackY - 8, width: pageWidth - 94, height: 41, borderColor: rgb(1, 0, 0), borderWidth: 2 })
-              page.drawText(String(fallbackCounter), { x: 30, y: fallbackY + 20, size: 12, font: boldFontEmbed, color: rgb(1, 0, 0) })
-              page.drawText(reqId, { x: 55, y: fallbackY + 5, size: 8, font: boldFontEmbed, color: rgb(0.5, 0, 0) })
-            }
-            const absolutePage = startPage
-            pagePointMap.set(reqId, { page: absolutePage, point: fallbackCounter })
-            continue
-          }
-
-          const { pageIdx, matches } = entry
-          const pageCounter = (pagePointCounters.get(pageIdx) ?? 0) + 1
-          pagePointCounters.set(pageIdx, pageCounter)
-
-          const page = srcDoc.getPage(pageIdx)
+        // Draw annotations (same style as analysis docs)
+        let globalPointCounter = 0
+        for (const [pageNum, pageAnns] of annsByPage) {
+          const page = srcDoc.getPage(pageNum - 1)
           const { width: pageWidth } = page.getSize()
-          const minX = Math.min(...matches.map(m => m.x))
-          const minY = Math.min(...matches.map(m => m.y))
-          const maxX = Math.max(...matches.map(m => m.x + m.width))
-          const maxY = Math.max(...matches.map(m => m.y + m.height))
-          const rectX = Math.max(25, minX - 5)
-          const rectY = minY - 5
-          const rectWidth = Math.min(pageWidth - 50, maxX - minX + 10)
-          const rectHeight = maxY - minY + 10
+          const textItems = textPositionsByPage.get(pageNum) || []
+          const highlightedItems = highlightedItemsByPage.get(pageNum) || new Set<string>()
+          highlightedItemsByPage.set(pageNum, highlightedItems)
 
-          page.drawRectangle({ x: rectX, y: rectY, width: rectWidth, height: rectHeight, color: rgb(1, 1, 0), opacity: 0.25 })
-          page.drawRectangle({ x: rectX - 3, y: rectY - 3, width: rectWidth + 6, height: rectHeight + 6, borderColor: rgb(1, 0, 0), borderWidth: 2 })
-          page.drawText(String(pageCounter), { x: Math.max(8, rectX - 20), y: rectY + rectHeight - 2, size: 12, font: boldFontEmbed, color: rgb(1, 0, 0) })
+          let pagePointCounter = 0
+          for (const ann of pageAnns) {
+            globalPointCounter++
+            pagePointCounter++
 
-          const absolutePage = startPage + pageIdx
-          pagePointMap.set(reqId, { page: absolutePage, point: pageCounter })
+            let annotated = false
+
+            if (textItems.length > 0) {
+              // Find the specific text item that best matches a distinctive part of exactText
+              const exactLower = ann.exactText.toLowerCase().replace(/\s+/g, ' ').trim()
+              
+              // Extract key phrases (split by periods/bullets to get individual sentences)
+              const sentences = exactLower.split(/[.•●]/).map(s => s.trim()).filter(s => s.length >= 20)
+              // Use the last sentence if available (usually the most specific/conclusive)
+              const targetSentence = sentences.length > 1 ? sentences[sentences.length - 1] : sentences[0] || exactLower.substring(0, 60)
+              const targetWords = targetSentence.split(/\s+/).filter(w => w.length >= 4).slice(0, 6)
+              const minWords = Math.max(2, Math.ceil(targetWords.length * 0.5))
+
+              // Find the single best matching text item
+              let bestItem: { x: number; y: number; width: number; height: number; key: string } | null = null
+              let bestScore = 0
+
+              for (const item of textItems) {
+                const itemKey = `${item.x},${item.y},${item.str}`
+                if (highlightedItems.has(itemKey)) continue
+                const itemLower = item.str.toLowerCase()
+                const matchCount = targetWords.filter(w => itemLower.includes(w)).length
+                if (matchCount >= minWords && matchCount > bestScore) {
+                  bestScore = matchCount
+                  bestItem = { ...item, key: itemKey }
+                }
+              }
+
+              if (bestItem) {
+                highlightedItems.add(bestItem.key)
+
+                const rectX = Math.max(25, bestItem.x - 5)
+                const rectY = bestItem.y - 5
+                const rectWidth = Math.min(pageWidth - 50, bestItem.width + 10)
+                const rectHeight = bestItem.height + 10
+
+                // Yellow highlight
+                page.drawRectangle({ x: rectX, y: rectY, width: rectWidth, height: rectHeight, color: rgb(1, 1, 0), opacity: 0.25 })
+                // Red border
+                page.drawRectangle({ x: rectX - 3, y: rectY - 3, width: rectWidth + 6, height: rectHeight + 6, borderColor: rgb(1, 0, 0), borderWidth: 2 })
+                // Point number
+                page.drawText(String(pagePointCounter), { x: Math.max(8, rectX - 20), y: rectY + rectHeight - 2, size: 12, font: boldFontEmbed, color: rgb(1, 0, 0) })
+
+                annotated = true
+              }
+            }
+
+            // Fallback: small marker if no precise match found
+            if (!annotated) {
+              const { height: pgHeight } = page.getSize()
+              const fallbackY = pgHeight - 60 - ((pagePointCounter - 1) * 30)
+              if (fallbackY > 50) {
+                page.drawRectangle({ x: 50, y: fallbackY - 2, width: pageWidth - 100, height: 20, color: rgb(1, 1, 0), opacity: 0.15 })
+                page.drawRectangle({ x: 47, y: fallbackY - 4, width: pageWidth - 94, height: 24, borderColor: rgb(1, 0, 0), borderWidth: 1.5 })
+                page.drawText(String(pagePointCounter), { x: 30, y: fallbackY + 5, size: 10, font: boldFontEmbed, color: rgb(1, 0, 0) })
+              }
+            }
+
+            const absolutePage = startPage + (pageNum - 1)
+            pagePointMap.set(ann.reqId, { page: absolutePage, point: pagePointCounter })
+          }
+        }
+
+        // Handle requirements without exactText — put them as simple markers
+        for (const reqId of linkedReqIds) {
+          if (pagePointMap.has(reqId)) continue // Already annotated
+          globalPointCounter++
+          pagePointMap.set(reqId, { page: startPage, point: globalPointCounter })
         }
 
         // Copy annotated sustento pages to final PDF
         const pageIndices = srcDoc.getPageIndices()
         const copiedPages = await finalPdf.copyPages(srcDoc, pageIndices)
-        for (const page of copiedPages) {
-          finalPdf.addPage(page)
+        for (const copiedPage of copiedPages) {
+          finalPdf.addPage(copiedPage)
         }
         currentPageCount += copiedPages.length
       } catch (err) {

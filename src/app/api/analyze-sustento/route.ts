@@ -139,36 +139,34 @@ Respond in JSON ONLY:
       .delete()
       .eq('project_id', projectId)
 
-    // Save results as sustento_links
+    // Save results as sustento_links (grouped by document)
+    // Also save requirement_matches with exactText for PDF annotation
+    const docGroups = new Map<string, { reqIds: string[]; matches: Record<string, string> }>()
+
     for (const result of results) {
-      // Find the document ID from filename
       const matchedDoc = docTexts.find(d => d.filename === result.documentFilename) || docTexts[0]
       if (!matchedDoc) continue
 
-      // Upsert sustento link
-      const { data: existing } = await supabaseAdmin
-        .from('sustento_links')
-        .select('id, requirement_ids')
-        .eq('project_id', projectId)
-        .eq('document_id', matchedDoc.id)
-        .maybeSingle()
-
-      if (existing) {
-        const merged = [...new Set([...existing.requirement_ids, result.requirementId])]
-        await supabaseAdmin
-          .from('sustento_links')
-          .update({ requirement_ids: merged })
-          .eq('id', existing.id)
-      } else {
-        await supabaseAdmin
-          .from('sustento_links')
-          .insert({
-            project_id: projectId,
-            analysis_id: analysisId,
-            document_id: matchedDoc.id,
-            requirement_ids: [result.requirementId],
-          })
+      if (!docGroups.has(matchedDoc.id)) {
+        docGroups.set(matchedDoc.id, { reqIds: [], matches: {} })
       }
+      const group = docGroups.get(matchedDoc.id)!
+      group.reqIds.push(result.requirementId)
+      if (result.exactText) {
+        group.matches[result.requirementId] = result.exactText
+      }
+    }
+
+    for (const [docId, group] of docGroups) {
+      await supabaseAdmin
+        .from('sustento_links')
+        .insert({
+          project_id: projectId,
+          analysis_id: analysisId,
+          document_id: docId,
+          requirement_ids: group.reqIds,
+          requirement_matches: group.matches,
+        })
     }
 
     return NextResponse.json({
