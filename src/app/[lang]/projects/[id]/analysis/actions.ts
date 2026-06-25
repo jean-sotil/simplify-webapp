@@ -176,6 +176,13 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   const requirements = await buildRequirementTraceMap(ettDocsForTracing, compareDocumentIds, supabase)
 
+  // Clean up previous sustento_links when re-running analysis
+  // (requirements may change, so old sustento links become invalid)
+  await supabaseAdmin
+    .from('sustento_links')
+    .delete()
+    .eq('project_id', projectId)
+
   // Upsert analysis_results row (allows re-running analysis for same project)
   const { data: analysis, error: insertError } = await supabaseAdmin
     .from('analysis_results')
@@ -185,6 +192,7 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
       status: 'processing',
       error_message: null,
       zip_file_url: null,
+      carpeta_digital_url: null,
       analysis_metadata: null,
       completed_at: null,
       triggered_at: new Date().toISOString(),

@@ -9,10 +9,10 @@ import type { SelectedDocument } from '@/lib/validation/schemas'
 
 interface AnalysisTriggerProps {
   projectId: string
-  ettDocument: EttDocument
+  ettDocuments: EttDocument[]
 }
 
-export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps) {
+export function AnalysisTrigger({ projectId, ettDocuments }: AnalysisTriggerProps) {
   const t = useTranslations('analysis')
   const [isPending, startTransition] = useTransition()
   const [triggerError, setTriggerError] = useState<string | null>(null)
@@ -74,7 +74,7 @@ export function AnalysisTrigger({ projectId, ettDocument }: AnalysisTriggerProps
         </p>
       )}
       <DocumentSelector
-        ettDocument={ettDocument}
+        ettDocuments={ettDocuments}
         onRunAnalysis={handleRunAnalysis}
         disabled={isPending || triggered}
       />

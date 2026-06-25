@@ -16,6 +16,7 @@ export const ProjectStageSchema = z.enum([
   "initiation",
   "planning",
   "docs_analysis",
+  "sustento_letters",
   "development",
   "deployment",
   "completed",
@@ -99,8 +100,8 @@ export type UpdateProject = z.infer<typeof UpdateProjectSchema>;
 // contexts (e.g. FormData parsing in a Server Action).
 // ---------------------------------------------------------------------------
 
-const DocumentTypeSchema = z.enum(["ett", "hardware", "software"], {
-  message: "Document type must be 'ett', 'hardware', or 'software'.",
+const DocumentTypeSchema = z.enum(["ett", "hardware", "software", "sustento"], {
+  message: "Document type must be 'ett', 'hardware', 'software', or 'sustento'.",
 });
 
 export type DocumentType = z.infer<typeof DocumentTypeSchema>;

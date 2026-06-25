@@ -17,6 +17,10 @@ const STAGE_STYLES: Record<ProjectStage, React.CSSProperties> = {
     backgroundColor: 'var(--color-accent-orange)',
     color: 'var(--color-on-primary)',
   },
+  sustento_letters: {
+    backgroundColor: '#8b5cf6',
+    color: 'var(--color-on-primary)',
+  },
   development: {
     backgroundColor: 'var(--color-accent-pink)',
     color: 'var(--color-on-primary)',

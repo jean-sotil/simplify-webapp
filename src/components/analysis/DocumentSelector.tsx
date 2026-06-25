@@ -18,18 +18,18 @@ interface DocumentRow {
 }
 
 interface DocumentSelectorProps {
-  ettDocument?: EttDocument
+  ettDocuments?: EttDocument[]
   onRunAnalysis?: (selected: SelectedDocument[]) => void
   disabled?: boolean
 }
 
-export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false }: DocumentSelectorProps) {
+export function DocumentSelector({ ettDocuments, onRunAnalysis, disabled = false }: DocumentSelectorProps) {
   const t = useTranslations('analysis')
   const tc = useTranslations('common')
   const [documents, setDocuments] = useState<DocumentRow[]>([])
   const [selected, setSelected] = useState<Map<string, DocumentRow>>(new Map())
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'hardware' | 'software'>('all')
+  const [filter, setFilter] = useState<'all' | 'hardware' | 'software' | 'sustento'>('all')
   const [searchText, setSearchText] = useState('')
 
   // Load all non-ETT documents on mount
@@ -40,7 +40,7 @@ export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false 
         const res = await fetch('/api/documents')
         const data = await res.json()
         const docs = (data.documents || []).filter(
-          (d: DocumentRow) => d.document_type === 'hardware' || d.document_type === 'software'
+          (d: DocumentRow) => d.document_type === 'hardware' || d.document_type === 'software' || d.document_type === 'sustento'
         )
         setDocuments(docs)
       } catch {
@@ -98,19 +98,19 @@ export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false 
       id: doc.id,
       filename: doc.filename,
       url: '',
-      documentType: doc.document_type as 'hardware' | 'software',
+      documentType: doc.document_type as 'hardware' | 'software' | 'sustento',
       relatedRequirements: [],
     }))
 
-    if (ettDocument) {
-      const ettEntry: SelectedDocument = {
-        id: ettDocument.id,
-        filename: ettDocument.filename,
-        url: ettDocument.url,
-        documentType: 'ett',
+    if (ettDocuments && ettDocuments.length > 0) {
+      const ettEntries: SelectedDocument[] = ettDocuments.map(ett => ({
+        id: ett.id,
+        filename: ett.filename,
+        url: ett.url,
+        documentType: 'ett' as const,
         relatedRequirements: [],
-      }
-      onRunAnalysis?.([ettEntry, ...selectedDocs])
+      }))
+      onRunAnalysis?.([...ettEntries, ...selectedDocs])
     } else {
       onRunAnalysis?.(selectedDocs)
     }
@@ -122,19 +122,24 @@ export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false 
   return (
     <div>
       {/* ETT context banner */}
-      {ettDocument && (
-        <div
-          className="mb-6 rounded-md px-4 py-3 text-sm"
-          style={{ backgroundColor: 'var(--color-accent-blue)', color: '#fff' }}
-        >
-          <span className="font-medium">ETT: </span>
-          {ettDocument.filename}
+      {ettDocuments && ettDocuments.length > 0 && (
+        <div className="mb-6 space-y-2">
+          {ettDocuments.map(ett => (
+            <div
+              key={ett.id}
+              className="rounded-md px-4 py-3 text-sm"
+              style={{ backgroundColor: 'var(--color-accent-blue)', color: '#fff' }}
+            >
+              <span className="font-medium">ETT: </span>
+              {ett.filename}
+            </div>
+          ))}
         </div>
       )}
 
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4">
-        {(['all', 'hardware', 'software'] as const).map(f => (
+        {(['all', 'hardware', 'software', 'sustento'] as const).map(f => (
           <button
             key={f}
             type="button"
@@ -145,12 +150,14 @@ export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false 
                   ? 'bg-[var(--color-accent-orange)] text-white border-transparent'
                   : f === 'software'
                     ? 'bg-emerald-600 text-white border-transparent'
-                    : 'bg-[var(--color-primary)] text-white border-transparent'
+                    : f === 'sustento'
+                      ? 'bg-violet-600 text-white border-transparent'
+                      : 'bg-[var(--color-primary)] text-white border-transparent'
                 : 'border-[var(--color-hairline)] hover:opacity-70'
             }`}
             style={filter !== f ? { color: 'var(--color-ink)' } : undefined}
           >
-            {f === 'all' ? t('all') : f === 'hardware' ? t('hardware') : t('software')}
+            {f === 'all' ? t('all') : f === 'hardware' ? t('hardware') : f === 'software' ? t('software') : 'Sustento'}
             {f === 'all' ? ` (${documents.length})` : ` (${documents.filter(d => d.document_type === f).length})`}
           </button>
         ))}
@@ -217,10 +224,12 @@ export function DocumentSelector({ ettDocument, onRunAnalysis, disabled = false 
                       className={`text-[10px] font-medium px-1.5 py-0.5 rounded-sm ${
                         doc.document_type === 'hardware'
                           ? 'bg-[var(--color-accent-orange)] text-white'
-                          : 'bg-emerald-600 text-white'
+                          : doc.document_type === 'sustento'
+                            ? 'bg-violet-600 text-white'
+                            : 'bg-emerald-600 text-white'
                       }`}
                     >
-                      {doc.document_type === 'hardware' ? 'HW' : 'SW'}
+                      {doc.document_type === 'hardware' ? 'HW' : doc.document_type === 'sustento' ? 'SUS' : 'SW'}
                     </span>
                     <span
                       className="flex-1 text-sm truncate"

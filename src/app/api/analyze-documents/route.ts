@@ -71,6 +71,10 @@ export async function POST(request: NextRequest) {
   console.log(`[analyze] Received: ${documents.length} docs, projectId=${projectId || 'NONE'}, analysisId=${analysisId?.substring(0,8) || 'NONE'}`)
   console.log(`[analyze] Doc URLs: ${documents.map(d => d.originalFileUrl ? 'YES' : 'NO').join(', ')}`)
 
+  // Track total requirements extracted from ETT (before routing)
+  let ettTotalRequirements = 0
+  let ettAllRequirements: Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> = []
+
   // Extract requirements from ETT document directly from DB
   // This bypasses any Server Action caching issues
   if (projectId) {
@@ -91,13 +95,30 @@ export async function POST(request: NextRequest) {
           .select('id, extracted_text, document_type')
           .in('id', docIds)
           .eq('document_type', 'ett')
-          .limit(1)
 
-        console.log(`[analyze] ETT query: ${ettDocs?.length ?? 0} docs found, error: ${ettError?.message ?? 'none'}, text length: ${ettDocs?.[0]?.extracted_text?.length ?? 0}`)
+        console.log(`[analyze] ETT query: ${ettDocs?.length ?? 0} docs found, error: ${ettError?.message ?? 'none'}`)
 
-        if (ettDocs && ettDocs[0]?.extracted_text) {
-          const allReqs = extractETTRequirements(ettDocs[0].extracted_text)
-          console.log(`[analyze] Extracted ${allReqs.length} requirements from ETT`)
+        if (ettDocs && ettDocs.length > 0) {
+          // Extract requirements from ALL ETT documents
+          const allReqs: Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> = []
+          let reqCounter = 0
+          for (const ettDoc of ettDocs) {
+            if (!ettDoc.extracted_text) continue
+            const reqs = extractETTRequirements(ettDoc.extracted_text)
+            // Re-number requirements to avoid duplicates across ETTs
+            for (const req of reqs) {
+              reqCounter++
+              allReqs.push({
+                ...req,
+                requirementId: `REQ-${String(reqCounter).padStart(3, '0')}`,
+              })
+            }
+            console.log(`[analyze] ETT ${ettDoc.id.substring(0, 8)}: extracted ${reqs.length} requirements (text: ${ettDoc.extracted_text.length} chars)`)
+          }
+          console.log(`[analyze] Total extracted ${allReqs.length} requirements from ${ettDocs.length} ETT(s)`)
+
+          ettTotalRequirements = allReqs.length
+          ettAllRequirements = allReqs
 
           if (allReqs.length > 0) {
             // Send all requirements to all documents
@@ -423,12 +444,59 @@ Respond in JSON ONLY:
   // If analysisId is provided, update the analysis_results row directly
   if (analysisId) {
     try {
+      // Calculate total unique requirements evaluated across all docs
+      const allReqIds = new Set<string>()
+      for (const doc of results) {
+        for (const ann of doc.annotations) {
+          allReqIds.add(ann.requirementId)
+        }
+      }
+      // Use the actual ETT total (not just what ended up in annotations)
+      const totalRequirements = ettTotalRequirements > 0 ? ettTotalRequirements : allReqIds.size
+
+      // Collect unfound requirements (unique by requirementId)
+      const foundReqIds = new Set<string>()
+      for (const doc of results) {
+        for (const ann of doc.annotations) {
+          if (ann.found) foundReqIds.add(ann.requirementId)
+        }
+      }
+
+      // Build unfound list from ALL ETT requirements, not just annotated ones
+      const unfoundRequirements = ettAllRequirements.length > 0
+        ? ettAllRequirements
+            .filter(req => !foundReqIds.has(req.requirementId))
+            .map(req => ({
+              requirementId: req.requirementId,
+              text: req.text,
+              partida: req.partida,
+              partidaDesc: req.partidaDesc,
+            }))
+        : Array.from(allReqIds)
+            .filter(id => !foundReqIds.has(id))
+            .map(id => {
+              for (const doc of results) {
+                const ann = doc.annotations.find(a => a.requirementId === id)
+                if (ann) {
+                  return {
+                    requirementId: id,
+                    text: ann.requirementText || '',
+                    partida: ann.partida || '',
+                    partidaDesc: ann.partidaDesc || '',
+                  }
+                }
+              }
+              return { requirementId: id, text: '', partida: '', partidaDesc: '' }
+            })
+
       await supabaseAdmin.from('analysis_results').update({
         status: 'completed',
         zip_file_url: zipFileUrl,
         analysis_metadata: {
           documentCount: responseData.totalDocuments,
           totalAnnotations: responseData.totalAnnotations,
+          totalRequirements,
+          unfoundRequirements,
           processedDocuments: responseData.processedDocs,
           generatedAt: responseData.generatedAt,
         },
@@ -479,7 +547,7 @@ const ETT_NOISE = [
   /^--- Page \d+ ---$/,
 ]
 
-const ETT_PARTIDA = /^(\d{2}\.\d{2}(?:\.\d{2}){0,2})\s+(.+)/
+const ETT_PARTIDA = /^(\d{1,2}(?:\.\d{1,4}){1,4})\.?\s+(.+)/
 
 function extractETTRequirements(rawText: string): Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> {
   // Normalize text first: split long lines on spec-start boundaries
@@ -514,11 +582,9 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
     const partidaMatch = trimmed.match(ETT_PARTIDA)
     if (partidaMatch) {
       flush()
-      inTargetSection = partidaMatch[1].startsWith('06.11')
-      if (inTargetSection) {
-        currentPartida = partidaMatch[1]
-        currentPartidaDesc = partidaMatch[2].trim()
-      }
+      inTargetSection = true
+      currentPartida = partidaMatch[1]
+      currentPartidaDesc = partidaMatch[2].trim()
       continue
     }
 
@@ -556,10 +622,10 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
 function normalizeETTText(text: string): string {
   let r = text.replace(/--- Page \d+ ---/g, '\n')
 
-  // Split before partida numbers
-  r = r.replace(/(\s)(\d{2}\.\d{2}\.\d{2}\.\d{2}\s)/g, '\n$2')
-  r = r.replace(/(\s)(\d{2}\.\d{2}\.\d{2}\s)/g, '\n$2')
-  r = r.replace(/(\s)(\d{2}\.\d{2}\s)/g, '\n$2')
+  // Split before partida numbers (supports 2.11, 2.11., 06.11.01.01, etc.)
+  r = r.replace(/(\s)(\d{1,2}\.\d{1,4}\.\d{1,4}\.\d{1,4}\.?\s)/g, '\n$2')
+  r = r.replace(/(\s)(\d{1,2}\.\d{1,4}\.\d{1,4}\.?\s)/g, '\n$2')
+  r = r.replace(/(\s)(\d{1,2}\.\d{1,4}\.?\s)/g, '\n$2')
 
   // Split before spec-start keywords when preceded by period+space or double-space
   const splitKeywords = [

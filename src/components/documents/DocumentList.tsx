@@ -11,11 +11,11 @@ interface DocumentRow {
   embedding: unknown
 }
 
-const TYPE_LABELS: Record<string, string> = { ett: 'ETT', hardware: 'Hardware', software: 'Software' }
 const TYPE_COLORS: Record<string, string> = {
   ett: 'bg-[var(--color-accent-blue)] text-white',
   hardware: 'bg-[var(--color-accent-orange)] text-white',
   software: 'bg-emerald-600 text-white',
+  sustento: 'bg-violet-600 text-white',
 }
 
 interface Props {
@@ -25,7 +25,7 @@ interface Props {
 
 export function DocumentList({ documents, lang }: Props) {
   const t = useTranslations('documents')
-  const [filter, setFilter] = useState<'all' | 'ett' | 'hardware' | 'software'>('all')
+  const [filter, setFilter] = useState<'all' | 'ett' | 'hardware' | 'software' | 'sustento'>('all')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
@@ -41,6 +41,7 @@ export function DocumentList({ documents, lang }: Props) {
     ett: documents.filter(d => d.document_type === 'ett').length,
     hardware: documents.filter(d => d.document_type === 'hardware').length,
     software: documents.filter(d => d.document_type === 'software').length,
+    sustento: documents.filter(d => d.document_type === 'sustento').length,
   }
 
   function toggleSelect(id: string) {
@@ -79,7 +80,7 @@ export function DocumentList({ documents, lang }: Props) {
     <div>
       {/* Filter tabs */}
       <div className="flex gap-2 mb-4">
-        {(['all', 'ett', 'hardware', 'software'] as const).map(f => (
+        {(['all', 'ett', 'hardware', 'software', 'sustento'] as const).map(f => (
           <button
             key={f}
             type="button"
@@ -92,12 +93,14 @@ export function DocumentList({ documents, lang }: Props) {
                     ? 'bg-[var(--color-accent-orange)] text-white border-transparent'
                     : f === 'software'
                       ? 'bg-emerald-600 text-white border-transparent'
-                      : 'bg-[var(--color-primary)] text-white border-transparent'
+                      : f === 'sustento'
+                        ? 'bg-violet-600 text-white border-transparent'
+                        : 'bg-[var(--color-primary)] text-white border-transparent'
                 : 'border-[var(--color-hairline)] hover:opacity-70'
             }`}
             style={filter !== f ? { color: 'var(--color-ink)' } : undefined}
           >
-            {f === 'all' ? t('allDocuments') : TYPE_LABELS[f]} ({counts[f]})
+            {f === 'all' ? t('allDocuments') : t(`type${f.charAt(0).toUpperCase()}${f.slice(1)}` as 'typeEtt' | 'typeHardware' | 'typeSoftware' | 'typeSustento')} ({counts[f]})
           </button>
         ))}
       </div>
@@ -164,7 +167,7 @@ export function DocumentList({ documents, lang }: Props) {
                   <span
                     className={`shrink-0 text-xs font-medium px-2 py-1 rounded-sm ${TYPE_COLORS[doc.document_type] ?? 'bg-gray-100'}`}
                   >
-                    {TYPE_LABELS[doc.document_type] ?? doc.document_type}
+                    {t(`type${doc.document_type.charAt(0).toUpperCase()}${doc.document_type.slice(1)}` as 'typeEtt' | 'typeHardware' | 'typeSoftware' | 'typeSustento') ?? doc.document_type}
                   </span>
                   <span
                     className="text-sm font-medium truncate"

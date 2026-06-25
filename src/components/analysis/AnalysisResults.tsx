@@ -7,6 +7,7 @@ export interface AnalysisResultData {
   id: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   zip_file_url?: string | null
+  carpeta_digital_url?: string | null
   analysis_metadata?: Record<string, unknown> | null
   completed_at?: string | null
   error_message?: string | null
@@ -14,14 +15,20 @@ export interface AnalysisResultData {
 
 interface AnalysisResultsProps {
   result: AnalysisResultData | null
+  projectId?: string
 }
 
-export function AnalysisResults({ result: initialResult }: AnalysisResultsProps) {
+export function AnalysisResults({ result: initialResult, projectId }: AnalysisResultsProps) {
   const t = useTranslations('analysis')
   const [result, setResult] = useState<AnalysisResultData | null>(initialResult)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const logRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
+  const [showUnfound, setShowUnfound] = useState(false)
+  const [unfoundSearch, setUnfoundSearch] = useState('')
+  const [carpetaLoading, setCarpetaLoading] = useState(false)
+  const [carpetaUrl, setCarpetaUrl] = useState<string | null>(initialResult?.carpeta_digital_url ?? null)
+  const [carpetaError, setCarpetaError] = useState<string | null>(null)
 
   const scrollToBottom = useCallback(() => {
     if (logRef.current) {
@@ -167,14 +174,30 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
   // Completed
   const metadata = result.analysis_metadata as {
     documentCount?: number
-    totalAnnotations?: number
+    totalRequirements?: number
+    unfoundRequirements?: Array<{
+      requirementId: string
+      text: string
+      partida: string
+      partidaDesc: string
+    }>
   } | null
   const docCount = metadata?.documentCount
-  const annotationCount = metadata?.totalAnnotations
+  const totalRequirements = metadata?.totalRequirements ?? 0
+  const unfoundRequirements = metadata?.unfoundRequirements ?? []
+  const notFoundCount = unfoundRequirements.length
+  const foundCount = totalRequirements - notFoundCount
+  const compliancePercent = totalRequirements > 0
+    ? ((foundCount / totalRequirements) * 100).toFixed(1)
+    : '0.0'
   const completedAt = result.completed_at ? new Date(result.completed_at).toLocaleString() : null
 
   return (
-    <div className="border rounded-md p-6" style={{ borderColor: 'var(--color-hairline)' }}>
+    <div className="border rounded-md p-5" style={{ borderColor: 'var(--color-hairline)' }}>
+      <h2 className="text-xs font-medium uppercase tracking-[1.5px] mb-4" style={{ color: 'var(--color-mute)' }}>
+        {t('results')}
+      </h2>
+
       <div className="flex items-center gap-2 mb-4">
         <span className="text-sm font-medium" style={{ color: 'var(--color-accent-green)' }}>
           ● {t('complete')}
@@ -184,42 +207,174 @@ export function AnalysisResults({ result: initialResult }: AnalysisResultsProps)
         )}
       </div>
 
-      {(docCount !== undefined || annotationCount !== undefined) && (
-        <dl className="flex gap-6 mb-4">
-          {docCount !== undefined && (
-            <div>
-              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>{t('documentsCount')}</dt>
-              <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{docCount}</dd>
+      {/* Compliance metrics */}
+      {totalRequirements > 0 && (
+        <>
+          {/* Compliance percentage - prominent */}
+          <div className="mb-4 flex items-baseline gap-2">
+            <span className="text-3xl font-bold" style={{ color: 'var(--color-ink)' }}>
+              {compliancePercent}%
+            </span>
+            <span className="text-sm" style={{ color: 'var(--color-mute)' }}>
+              {t('compliancePercent')}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full h-2 rounded-full mb-4" style={{ backgroundColor: 'var(--color-hairline)' }}>
+            <div
+              className="h-2 rounded-full transition-all"
+              style={{
+                width: `${Math.min(parseFloat(compliancePercent), 100)}%`,
+                backgroundColor: parseFloat(compliancePercent) >= 70 ? 'var(--color-accent-green)' : parseFloat(compliancePercent) >= 40 ? '#f59e0b' : 'var(--color-accent-red)',
+              }}
+            />
+          </div>
+
+          {/* Stats grid */}
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5">
+            {docCount !== undefined && (
+              <div className="border rounded-sm p-3" style={{ borderColor: 'var(--color-hairline)' }}>
+                <dt className="text-xs mb-1" style={{ color: 'var(--color-mute)' }}>{t('documentsCount')}</dt>
+                <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{docCount}</dd>
+              </div>
+            )}
+            <div className="border rounded-sm p-3" style={{ borderColor: 'var(--color-hairline)' }}>
+              <dt className="text-xs mb-1" style={{ color: 'var(--color-mute)' }}>{t('totalRequirements')}</dt>
+              <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{totalRequirements}</dd>
             </div>
-          )}
-          {annotationCount !== undefined && (
-            <div>
-              <dt className="text-xs" style={{ color: 'var(--color-mute)' }}>{t('annotationsFound')}</dt>
-              <dd className="text-lg font-semibold" style={{ color: 'var(--color-ink)' }}>{annotationCount}</dd>
+            <div className="border rounded-sm p-3" style={{ borderColor: 'var(--color-hairline)' }}>
+              <dt className="text-xs mb-1" style={{ color: 'var(--color-mute)' }}>{t('requirementsFound')}</dt>
+              <dd className="text-lg font-semibold" style={{ color: 'var(--color-accent-green)' }}>{foundCount}</dd>
             </div>
-          )}
-        </dl>
+            <div className="border rounded-sm p-3" style={{ borderColor: 'var(--color-hairline)' }}>
+              <dt className="text-xs mb-1" style={{ color: 'var(--color-mute)' }}>{t('requirementsNotFound')}</dt>
+              <dd className="text-lg font-semibold" style={{ color: 'var(--color-accent-red)' }}>{notFoundCount}</dd>
+            </div>
+          </dl>
+        </>
       )}
 
-      {result.zip_file_url && (
-        <a
-          href={`/api/download?url=${encodeURIComponent(result.zip_file_url)}`}
-          download
-          className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90"
-          style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
-        >
-          {t('downloadResults')}
-        </a>
+      {/* Unfound requirements - simple read-only table */}
+      {unfoundRequirements.length > 0 && (
+        <div className="mb-5 border rounded-sm" style={{ borderColor: 'var(--color-hairline)' }}>
+          <button
+            type="button"
+            onClick={() => setShowUnfound(!showUnfound)}
+            className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium hover:bg-gray-50 transition-colors"
+            style={{ color: 'var(--color-ink)' }}
+          >
+            <span>{t('unfoundRequirements')} ({unfoundRequirements.length})</span>
+            <span className="text-xs" style={{ color: 'var(--color-mute)' }}>
+              {showUnfound ? '▲' : '▼'}
+            </span>
+          </button>
+          {showUnfound && (
+            <div className="border-t" style={{ borderColor: 'var(--color-hairline)' }}>
+              {/* Search filter */}
+              <div className="px-3 py-2 border-b" style={{ borderColor: 'var(--color-hairline)' }}>
+                <input
+                  type="text"
+                  value={unfoundSearch}
+                  onChange={e => setUnfoundSearch(e.target.value)}
+                  placeholder={t('filterByIdPartidaReq')}
+                  className="w-full border rounded-sm px-3 py-1.5 text-xs focus:outline-none"
+                  style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
+                />
+              </div>
+              <div className="max-h-80 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b" style={{ borderColor: 'var(--color-hairline)', backgroundColor: '#fafafa' }}>
+                    <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--color-mute)' }}>ID</th>
+                    <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--color-mute)' }}>{t('partidaCol')}</th>
+                    <th className="text-left px-3 py-2 font-medium" style={{ color: 'var(--color-mute)' }}>{t('requirementCol')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...unfoundRequirements]
+                    .sort((a, b) => {
+                      const numA = parseInt(a.requirementId.replace(/\D/g, ''), 10)
+                      const numB = parseInt(b.requirementId.replace(/\D/g, ''), 10)
+                      return numA - numB
+                    })
+                    .filter(req => {
+                      if (!unfoundSearch.trim()) return true
+                      const q = unfoundSearch.toLowerCase()
+                      return req.requirementId.toLowerCase().includes(q) ||
+                        (req.partida || '').toLowerCase().includes(q) ||
+                        (req.text || '').toLowerCase().includes(q)
+                    })
+                    .map((req) => (
+                    <tr key={req.requirementId} className="border-b last:border-b-0" style={{ borderColor: 'var(--color-hairline)' }}>
+                      <td className="px-3 py-2 whitespace-nowrap font-mono" style={{ color: 'var(--color-mute)' }}>
+                        {req.requirementId}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap" style={{ color: 'var(--color-body)' }}>
+                        {req.partida || '-'}
+                      </td>
+                      <td className="px-3 py-2" style={{ color: 'var(--color-body)' }}>
+                        {req.text || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              </div>
+            </div>
+          )}
+        </div>
       )}
 
-      <button
-        type="button"
-        onClick={() => window.location.reload()}
-        className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium border transition-colors hover:bg-gray-50 ml-3"
-        style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' }}
-      >
-        {t('rerunAnalysis')}
-      </button>
+      {/* Generate Carpeta Digital */}
+      {projectId && (
+        <div className="flex items-center gap-3 flex-wrap pt-4 border-t" style={{ borderColor: 'var(--color-hairline)' }}>
+          <button
+            type="button"
+            disabled={carpetaLoading}
+            onClick={async () => {
+              setCarpetaLoading(true)
+              setCarpetaError(null)
+              try {
+                const res = await fetch('/api/generate-carpeta-digital', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ analysisId: result.id, projectId }),
+                })
+                if (!res.ok) {
+                  const err = await res.json()
+                  throw new Error(err.error || 'Failed to generate')
+                }
+                const data = await res.json()
+                setCarpetaUrl(data.zipUrl)
+              } catch (err) {
+                setCarpetaError(err instanceof Error ? err.message : 'Error')
+              } finally {
+                setCarpetaLoading(false)
+              }
+            }}
+            className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-50"
+            style={{ backgroundColor: '#8b5cf6', color: 'white' }}
+          >
+            {carpetaLoading ? t('generatingCarpeta') : (carpetaUrl ? t('regenerateCarpeta') : t('generateCarpeta'))}
+          </button>
+
+          {carpetaUrl && (
+            <a
+              href={`/api/download?url=${encodeURIComponent(carpetaUrl)}`}
+              download
+              className="inline-flex items-center gap-2 rounded-sm px-5 py-3 text-sm font-medium border transition-colors hover:bg-gray-50"
+              style={{ borderColor: '#8b5cf6', color: '#8b5cf6' }}
+            >
+              {t('downloadCarpeta')}
+            </a>
+          )}
+
+          {carpetaError && (
+            <span className="text-xs" style={{ color: 'var(--color-accent-red)' }}>{carpetaError}</span>
+          )}
+        </div>
+      )}
     </div>
   )
 }

@@ -46,10 +46,25 @@ export default async function LocaleLayout({ children, params }: Props) {
         {children}
       </div>
       <footer
-        className="border-t mt-16 py-8 text-center text-xs"
-        style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
+        className="border-t mt-16 py-5"
+        style={{ borderColor: 'var(--color-hairline)' }}
       >
-        &copy; {new Date().getFullYear()} Simplify &middot; Built for ibudi
+        <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
+          <p className="text-xs" style={{ color: 'var(--color-mute)' }}>
+            &copy; {new Date().getFullYear()} Simplify
+          </p>
+          <span className="text-xs" style={{ color: 'var(--color-hairline)' }}>|</span>
+          <a
+            href="https://www.ibudi.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs transition-opacity hover:opacity-70"
+            style={{ color: 'var(--color-mute)' }}
+          >
+            <img src="/logo.ibudi.png" alt="ibudi.dev" width={20} height={20} className="rounded-sm" />
+            <span>ibudi.dev</span>
+          </a>
+        </div>
       </footer>
     </NextIntlClientProvider>
   )

@@ -15,6 +15,7 @@ const STAGE_LABELS: Record<ProjectStage, string> = {
   initiation: 'Initiation',
   planning: 'Planning',
   docs_analysis: 'Docs Analysis',
+  sustento_letters: 'Sustento Letters',
   development: 'Development',
   deployment: 'Deployment',
   completed: 'Completed',
@@ -24,6 +25,7 @@ const STAGE_ACCENT: Record<ProjectStage, string> = {
   initiation: 'var(--color-accent-blue)',
   planning: 'var(--color-accent-purple)',
   docs_analysis: 'var(--color-accent-orange)',
+  sustento_letters: '#8b5cf6',
   development: 'var(--color-accent-pink)',
   deployment: 'var(--color-accent-yellow)',
   completed: 'var(--color-accent-green)',
@@ -70,6 +72,7 @@ export default async function DashboardPage({ params }: Props) {
   const ettCount = documents.filter(d => d.document_type === 'ett').length
   const hardwareCount = documents.filter(d => d.document_type === 'hardware').length
   const softwareCount = documents.filter(d => d.document_type === 'software').length
+  const sustentoCount = documents.filter(d => d.document_type === 'sustento').length
 
   const summaryCards = [
     { label: t('totalProjects'), value: projects.length, accent: 'var(--color-accent-blue)' },
@@ -122,7 +125,7 @@ export default async function DashboardPage({ params }: Props) {
           >
             {t('projectsByStage')}
           </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
             {(Object.keys(STAGE_LABELS) as ProjectStage[]).map(stage => (
               <div
                 key={stage}
@@ -158,6 +161,7 @@ export default async function DashboardPage({ params }: Props) {
             { label: t('ettSpecs'), value: ettCount, color: 'var(--color-accent-blue)' },
             { label: t('hardware'), value: hardwareCount, color: 'var(--color-accent-orange)' },
             { label: t('software'), value: softwareCount, color: '#059669' },
+            { label: t('sustento'), value: sustentoCount, color: '#8b5cf6' },
           ].map(item => (
             <div
               key={item.label}
