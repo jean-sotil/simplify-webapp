@@ -252,17 +252,14 @@ export async function POST(request: NextRequest) {
         const buffer = await res.arrayBuffer()
         const pdfBuffer = Buffer.from(buffer)
 
-        // Step 1: Try to use pdfjs-dist for text coordinate extraction
-        // Falls back to margin labels if pdfjs fails (Node.js worker issues)
+        // Step 1: Try to use unpdf (getDocumentProxy) for text coordinate extraction
+        // More reliable in serverless than pdfjs-dist direct import
         let textPositionsByPage = new Map<number, Array<{ str: string; x: number; y: number; width: number; height: number }>>()
         const neededPages = new Set(docAnnotations.filter(a => a.pageNum).map(a => a.pageNum!))
 
         try {
-          const pdfjsLib = await import('pdfjs-dist')
-          if (pdfjsLib.GlobalWorkerOptions) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = ''
-          }
-          const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer), verbosity: 0 }).promise
+          const { getDocumentProxy } = await import('unpdf')
+          const pdfjsDoc = await getDocumentProxy(new Uint8Array(pdfBuffer))
 
           for (const pageNum of neededPages) {
             if (pageNum < 1 || pageNum > pdfjsDoc.numPages) continue
@@ -280,7 +277,7 @@ export async function POST(request: NextRequest) {
           }
           await pdfjsDoc.destroy()
         } catch (pdfjsErr) {
-          console.warn(`[carpeta-digital] pdfjs text extraction failed for doc ${docId}, using fallback annotations:`, pdfjsErr instanceof Error ? pdfjsErr.message : pdfjsErr)
+          console.warn(`[carpeta-digital] unpdf text extraction failed for doc ${docId}, using fallback annotations:`, pdfjsErr instanceof Error ? pdfjsErr.message : pdfjsErr)
           textPositionsByPage = new Map()
         }
 
@@ -484,12 +481,11 @@ export async function POST(request: NextRequest) {
         const buffer = await res.arrayBuffer()
         const pdfBuffer = Buffer.from(buffer)
 
-        // Try pdfjs for text coordinates
+        // Try unpdf (getDocumentProxy) for text coordinates — more reliable in serverless than pdfjs-dist direct
         let textPositionsByPage = new Map<number, Array<{ str: string; x: number; y: number; width: number; height: number }>>()
         try {
-          const pdfjsLib = await import('pdfjs-dist')
-          if (pdfjsLib.GlobalWorkerOptions) pdfjsLib.GlobalWorkerOptions.workerSrc = ''
-          const pdfjsDoc = await pdfjsLib.getDocument({ data: new Uint8Array(pdfBuffer), verbosity: 0 }).promise
+          const { getDocumentProxy } = await import('unpdf')
+          const pdfjsDoc = await getDocumentProxy(new Uint8Array(pdfBuffer))
           for (let p = 1; p <= pdfjsDoc.numPages; p++) {
             const page = await pdfjsDoc.getPage(p)
             const textContent = await page.getTextContent()
@@ -501,7 +497,8 @@ export async function POST(request: NextRequest) {
             textPositionsByPage.set(p, items)
           }
           await pdfjsDoc.destroy()
-        } catch {
+        } catch (pdfjsErr) {
+          console.warn(`[carpeta-digital] unpdf text extraction failed for sustento doc ${doc.id}:`, pdfjsErr instanceof Error ? pdfjsErr.message : pdfjsErr)
           textPositionsByPage = new Map()
         }
 
