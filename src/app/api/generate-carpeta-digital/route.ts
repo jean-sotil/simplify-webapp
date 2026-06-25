@@ -669,7 +669,8 @@ export async function POST(request: NextRequest) {
   // Load template
   const templatePath = path.resolve(process.cwd(), 'docs', 'Compliance_Matrix_Template.xlsx')
   const templateWb = new ExcelJS.Workbook()
-  let templateSheet: ExcelJS.Worksheet | null = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let templateSheet: any = null
   try {
     if (fs.existsSync(templatePath)) {
       await templateWb.xlsx.readFile(templatePath)
@@ -720,7 +721,8 @@ export async function POST(request: NextRequest) {
     return text.replace(/\n/g, ' ').replace(/\r/g, '').replace(/\s+/g, ' ').trim()
   }
 
-  function copyTemplateToSheet(ws: ExcelJS.Worksheet) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function copyTemplateToSheet(ws: any) {
     if (!templateSheet) return
     for (let c = 1; c <= 6; c++) {
       const templateCol = templateSheet.getColumn(c)
@@ -730,7 +732,7 @@ export async function POST(request: NextRequest) {
       const srcRow = templateSheet.getRow(r)
       const destRow = ws.getRow(r)
       destRow.height = srcRow.height
-      srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+      srcRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
         if (colNumber > 6) return
         const destCell = destRow.getCell(colNumber)
         destCell.style = JSON.parse(JSON.stringify(cell.style))
@@ -739,11 +741,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  function applyDataRowStyle(ws: ExcelJS.Worksheet, rowNum: number) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function applyDataRowStyle(ws: any, rowNum: number) {
     if (!templateSheet) return
     const srcRow = templateSheet.getRow(4)
     const destRow = ws.getRow(rowNum)
-    srcRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+    srcRow.eachCell({ includeEmpty: true }, (cell: any, colNumber: number) => {
       if (colNumber > 6) return
       const destCell = destRow.getCell(colNumber)
       destCell.style = JSON.parse(JSON.stringify(cell.style))

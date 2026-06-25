@@ -27,7 +27,7 @@ interface Props {
   lang: string
 }
 
-export function SustentoWorkspace({ projectId, projectName, analysisId, analysisMetadata, analysisCompletedAt, initialCarpetaUrl, lang }: Props) {
+export function SustentoWorkspace({ projectId, projectName: _projectName, analysisId, analysisMetadata, analysisCompletedAt, initialCarpetaUrl, lang: _lang }: Props) {
   const t = useTranslations('sustento')
 
   const [carpetaLoading, setCarpetaLoading] = useState(false)

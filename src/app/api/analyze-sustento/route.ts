@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         if (res.ok) {
           const buffer = await res.arrayBuffer()
           const { extractText } = await import('unpdf')
-          const result = await extractText(new Uint8Array(buffer), { mergePages: true })
+          const result = await extractText(new Uint8Array(buffer), { mergePages: false })
           docTexts.push({ id: doc.id, filename: doc.filename, text: result.text.join('\n') })
         }
       } catch (err) {

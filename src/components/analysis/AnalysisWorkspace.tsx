@@ -34,7 +34,7 @@ const TYPE_BADGE: Record<string, { bg: string; label: string }> = {
   software: { bg: 'bg-emerald-600', label: 'SW' },
 }
 
-export function AnalysisWorkspace({ projectId, projectName, ettDocuments, initialAnalysis, lang }: Props) {
+export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDocuments, initialAnalysis, lang: _lang }: Props) {
   const t = useTranslations('analysis')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -206,7 +206,7 @@ function DocumentSection({
   onRemove,
   emptyMessage,
   badgeType,
-  projectId,
+  projectId: _projectId,
   t,
 }: {
   title: string
@@ -227,7 +227,6 @@ function DocumentSection({
   const [typeFilter, setTypeFilter] = useState<'all' | 'hardware' | 'software'>('all')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
-  const fileInputRef = useState<HTMLInputElement | null>(null)
 
   const filteredAvailable = availableDocs.filter(d => {
     if (search.trim() && !d.filename.toLowerCase().includes(search.toLowerCase())) return false
