@@ -517,29 +517,41 @@ export async function POST(request: NextRequest) {
           const reqText = reqTextMap.get(reqId) || ''
           if (!reqText) continue
 
-          const searchWords = reqText.toLowerCase().split(/\s+/).filter(w => w.length >= 3).slice(0, 10)
+          const searchWords = reqText.toLowerCase().split(/\s+/).filter(w => w.length >= 4).slice(0, 12)
+          if (searchWords.length === 0) continue
+
+          // Minimum words required for a valid match (at least 30% of search words or 3, whichever is smaller)
+          const minMatchCount = Math.max(3, Math.ceil(searchWords.length * 0.3))
+
+          let bestMatch: { pageIdx: number; matches: Array<{ x: number; y: number; width: number; height: number; key: string }>; score: number } | null = null
 
           for (let pageIdx = 0; pageIdx < srcDoc.getPageCount(); pageIdx++) {
             const pageNum = pageIdx + 1
             const textItems = textPositionsByPage.get(pageNum) || []
 
-            const matches: Array<{ x: number; y: number; width: number; height: number; key: string }> = []
+            const matches: Array<{ x: number; y: number; width: number; height: number; key: string; score: number }> = []
             for (const item of textItems) {
               if (matches.length >= 5) break
               const itemKey = `${item.x},${item.y},${item.str}`
               if (highlightedItems.has(itemKey)) continue
               const itemLower = item.str.toLowerCase()
               const matchCount = searchWords.filter(w => itemLower.includes(w)).length
-              if (matchCount >= 1) {
-                matches.push({ ...item, key: itemKey })
+              if (matchCount >= minMatchCount) {
+                matches.push({ ...item, key: itemKey, score: matchCount })
               }
             }
 
             if (matches.length > 0) {
-              for (const m of matches) highlightedItems.add(m.key)
-              reqPageMap.set(reqId, { pageIdx, matches })
-              break
+              const totalScore = matches.reduce((sum, m) => sum + m.score, 0)
+              if (!bestMatch || totalScore > bestMatch.score) {
+                bestMatch = { pageIdx, matches, score: totalScore }
+              }
             }
+          }
+
+          if (bestMatch) {
+            for (const m of bestMatch.matches) highlightedItems.add(m.key)
+            reqPageMap.set(reqId, { pageIdx: bestMatch.pageIdx, matches: bestMatch.matches })
           }
         }
 
