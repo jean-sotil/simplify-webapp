@@ -45,7 +45,7 @@ export function Navigation({ lang, isAdmin = false, userEmail = null }: Navigati
         </Link>
 
         <nav className="hidden sm:flex items-center gap-1" aria-label="Main navigation">
-          {NAV_LINKS.map(({ href, label }) => {
+          {userEmail && NAV_LINKS.map(({ href, label }) => {
             const fullHref = `/${lang}${href}`
             const isActive = pathname.startsWith(fullHref)
             return (
@@ -122,7 +122,7 @@ export function Navigation({ lang, isAdmin = false, userEmail = null }: Navigati
           style={{ borderColor: 'var(--color-hairline)' }}
           aria-label="Mobile navigation"
         >
-          {NAV_LINKS.map(({ href, label }) => {
+          {userEmail && NAV_LINKS.map(({ href, label }) => {
             const fullHref = `/${lang}${href}`
             const isActive = pathname.startsWith(fullHref)
             return (

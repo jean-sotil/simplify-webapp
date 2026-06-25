@@ -170,7 +170,7 @@ export function SustentoWorkspace({ projectId, projectName: _projectName, analys
       const res = await fetch('/api/generate-carpeta-digital', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ analysisId, projectId }),
+        body: JSON.stringify({ analysisId, projectId, source: 'sustento' }),
       })
       if (!res.ok) {
         const err = await res.json()

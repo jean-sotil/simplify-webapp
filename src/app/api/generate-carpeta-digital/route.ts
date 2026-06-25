@@ -49,12 +49,12 @@ interface ProcessedDocument {
  *
  * Also generates an updated compliance matrix Excel with Pág/Pto references.
  *
- * Body: { analysisId: string, projectId: string }
+ * Body: { analysisId: string, projectId: string, source?: 'analysis' | 'sustento' }
  */
 export async function POST(request: NextRequest) {
   console.log('[carpeta-digital] === POST HANDLER CALLED ===')
   const body = await request.json()
-  const { analysisId, projectId } = body as { analysisId: string; projectId: string }
+  const { analysisId, projectId, source = 'analysis' } = body as { analysisId: string; projectId: string; source?: 'analysis' | 'sustento' }
 
   if (!analysisId || !projectId) {
     return NextResponse.json({ error: 'Missing analysisId or projectId' }, { status: 400 })
@@ -863,9 +863,10 @@ export async function POST(request: NextRequest) {
   console.log(`[carpeta-digital] ZIP uploaded: ${blob.url}`)
 
   // Save the carpeta digital URL in analysis_results for persistence
+  const updateColumn = source === 'sustento' ? 'sustento_carpeta_digital_url' : 'analysis_carpeta_digital_url'
   await supabaseAdmin
     .from('analysis_results')
-    .update({ carpeta_digital_url: blob.url })
+    .update({ [updateColumn]: blob.url })
     .eq('id', analysisId)
 
   return NextResponse.json({ zipUrl: blob.url })

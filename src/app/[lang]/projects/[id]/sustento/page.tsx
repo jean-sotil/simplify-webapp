@@ -32,7 +32,7 @@ export default async function ProjectSustentoPage({ params }: Props) {
   // Get the latest completed analysis
   const { data: analysis } = await supabase
     .from('analysis_results')
-    .select('id, status, analysis_metadata, completed_at, carpeta_digital_url')
+    .select('id, status, analysis_metadata, completed_at, analysis_carpeta_digital_url, sustento_carpeta_digital_url')
     .eq('project_id', id)
     .eq('status', 'completed')
     .order('triggered_at', { ascending: false })
@@ -83,7 +83,7 @@ export default async function ProjectSustentoPage({ params }: Props) {
           analysisId={analysis.id}
           analysisMetadata={analysis.analysis_metadata as Record<string, unknown> | null}
           analysisCompletedAt={(analysis as { completed_at?: string }).completed_at || null}
-          initialCarpetaUrl={(analysis as { carpeta_digital_url?: string }).carpeta_digital_url || null}
+          initialCarpetaUrl={(analysis as { sustento_carpeta_digital_url?: string }).sustento_carpeta_digital_url || null}
           lang={lang}
         />
       )}

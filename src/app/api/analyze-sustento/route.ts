@@ -25,6 +25,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
 
+  // Clear sustento carpeta digital URL since sustento results are changing
+  await supabaseAdmin
+    .from('analysis_results')
+    .update({ sustento_carpeta_digital_url: null })
+    .eq('project_id', projectId)
+
   console.log(`[analyze-sustento] Project: ${projectId}, Reqs: ${requirements.length}, Sustento docs: ${documentIds.length}`)
 
   // Get sustento document content

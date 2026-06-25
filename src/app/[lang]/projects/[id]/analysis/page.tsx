@@ -45,7 +45,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
   // Get latest analysis result
   const { data: analysis } = await supabase
     .from('analysis_results')
-    .select('id, status, zip_file_url, carpeta_digital_url, analysis_metadata, completed_at, error_message')
+    .select('id, status, zip_file_url, analysis_carpeta_digital_url, sustento_carpeta_digital_url, analysis_metadata, completed_at, error_message')
     .eq('project_id', id)
     .order('triggered_at', { ascending: false })
     .limit(1)
@@ -87,6 +87,8 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           id: string
           status: 'pending' | 'processing' | 'completed' | 'failed'
           zip_file_url?: string | null
+          analysis_carpeta_digital_url?: string | null
+          sustento_carpeta_digital_url?: string | null
           analysis_metadata?: Record<string, unknown> | null
           completed_at?: string | null
           error_message?: string | null

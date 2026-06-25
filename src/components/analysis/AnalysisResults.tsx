@@ -7,7 +7,8 @@ export interface AnalysisResultData {
   id: string
   status: 'pending' | 'processing' | 'completed' | 'failed'
   zip_file_url?: string | null
-  carpeta_digital_url?: string | null
+  analysis_carpeta_digital_url?: string | null
+  sustento_carpeta_digital_url?: string | null
   analysis_metadata?: Record<string, unknown> | null
   completed_at?: string | null
   error_message?: string | null
@@ -27,7 +28,7 @@ export function AnalysisResults({ result: initialResult, projectId }: AnalysisRe
   const [showUnfound, setShowUnfound] = useState(false)
   const [unfoundSearch, setUnfoundSearch] = useState('')
   const [carpetaLoading, setCarpetaLoading] = useState(false)
-  const [carpetaUrl, setCarpetaUrl] = useState<string | null>(initialResult?.carpeta_digital_url ?? null)
+  const [carpetaUrl, setCarpetaUrl] = useState<string | null>(initialResult?.analysis_carpeta_digital_url ?? null)
   const [carpetaError, setCarpetaError] = useState<string | null>(null)
 
   const scrollToBottom = useCallback(() => {
@@ -339,7 +340,7 @@ export function AnalysisResults({ result: initialResult, projectId }: AnalysisRe
                 const res = await fetch('/api/generate-carpeta-digital', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ analysisId: result.id, projectId }),
+                  body: JSON.stringify({ analysisId: result.id, projectId, source: 'analysis' }),
                 })
                 if (!res.ok) {
                   const err = await res.json()
