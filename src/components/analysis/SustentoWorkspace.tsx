@@ -133,6 +133,8 @@ export function SustentoWorkspace({ projectId, projectName: _projectName, analys
     setSustentoAnalysisError(null)
     setSustentoAnalysisResult(null)
     setSustentoLogs([`Sending ${unfoundRequirements.length} requirements to analyze against ${sustentoDocs.length} support letter(s)...`])
+    // Clear carpeta URL since sustento results are changing
+    setCarpetaUrl(null)
     try {
       setSustentoLogs(prev => [...prev, 'Calling LLM for compliance verification...'])
       const res = await fetch('/api/analyze-sustento', {
