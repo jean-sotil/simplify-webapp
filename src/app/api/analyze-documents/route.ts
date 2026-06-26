@@ -313,21 +313,51 @@ export async function POST(request: NextRequest) {
       const pageTexts = pages.map(p => `--- PAGE ${p.pageNum} ---\n${p.text}`).join('\n\n')
       const reqList = unmatchedReqs.map(r => `${r.requirementId}: ${r.text}`).join('\n')
 
-      const systemPrompt = `You are a technical compliance analyst. Your job is to find evidence in a technical document (datasheet/spec sheet) that satisfies each requirement.
+      // Load LLM config for this project
+      const { data: projectData } = await supabaseAdmin
+        .from('projects')
+        .select('metadata')
+        .eq('id', projectId)
+        .single()
+      const llmConfig = ((projectData?.metadata ?? {}) as Record<string, unknown>).llmConfig as {
+        model?: string; temperature?: number; strictness?: string; maxExactTextLength?: number; maxContextChars?: number
+      } | undefined
 
-IMPORTANT RULES:
+      const llmModel = llmConfig?.model || 'openai/gpt-4o'
+      const llmTemp = llmConfig?.temperature ?? 0
+      const maxTextLen = llmConfig?.maxExactTextLength ?? 120
+
+      let strictnessRule = 'If the document clearly provides the capability, mark it as found'
+      if (llmConfig?.strictness === 'strict') {
+        strictnessRule = 'Only mark as found if there is CLEAR and EXPLICIT evidence. Do NOT guess.'
+      } else if (llmConfig?.strictness === 'permissive') {
+        strictnessRule = 'Mark as found if there is any reasonable indication of compliance. When in doubt, mark as found.'
+      }
+
+      const systemPrompt = `You are a technical compliance analyst specializing in Peruvian public procurement (licitaciones).
+You verify whether a vendor's technical datasheet satisfies requirements from an ETT (Especificacion Tecnica de Terminos).
+
+CONTEXT:
+- Requirements are extracted from ETT documents in Spanish
+- Vendor documents may be in Spanish or English (datasheets, spec sheets, certifications)
+- This is for a public infrastructure project (hospitals, schools, etc.)
+
+MATCHING RULES:
 - Look for FUNCTIONAL EQUIVALENCE, not just exact text matches
-- A requirement in Spanish like "Puerto Ethernet 10/100/1000" matches English text like "RJ-45 10/100/1000 Mbps Ethernet"
-- A requirement like "Debe soportar 600 LBS" matches "Holding force: 600 lbs (2700N)"
-- Technical specs often use abbreviations, different units, or different terminology for the same thing
-- If the document clearly provides the capability described in the requirement, mark it as found
-- Return the EXACT text fragment from the PDF that proves compliance (do not paraphrase)
-- If you cannot find clear evidence of compliance, set found to false
+- "Puerto Ethernet 10/100/1000" matches "RJ-45 10/100/1000 Mbps Ethernet"
+- "Debe soportar 600 LBS" matches "Holding force: 600 lbs (2700N)"
+- Certifications like "UL o similar" match CE-DOC, CE-EMC, FCC, etc.
+- Technical specs often use abbreviations, different units, or alternate terminology
+- ${strictnessRule}
+
+EVIDENCE RULES:
+- Return the EXACT text fragment from the PDF (copy verbatim, do NOT paraphrase)
+- The exactText MUST be a single sentence or line (max ${maxTextLen} characters) - the most specific fragment
 - Include the page number where evidence was found
-- Each evidence fragment: 1-3 sentences max
+- If you cannot find clear evidence, set found to false
 
 Respond in JSON ONLY:
-{"annotations":[{"requirementId":"REQ-001","found":true,"pageNum":2,"exactText":"exact text from PDF here","confidence":0.85}]}`
+{"annotations":[{"requirementId":"REQ-001","found":true,"pageNum":2,"exactText":"single line from PDF","confidence":0.85}]}`
 
       const userPrompt = `TECHNICAL REQUIREMENTS TO VERIFY:\n${reqList}\n\nDOCUMENT CONTENT:\n${pageTexts}`
 
@@ -340,8 +370,8 @@ Respond in JSON ONLY:
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'openai/gpt-4o',
-            temperature: 0,
+            model: llmModel,
+            temperature: llmTemp,
             seed: 42,
             response_format: { type: 'json_object' },
             messages: [

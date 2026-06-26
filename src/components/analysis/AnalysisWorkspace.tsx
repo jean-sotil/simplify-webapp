@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { triggerAnalysis } from '@/app/[lang]/projects/[id]/analysis/actions'
 import { AnalysisResults, type AnalysisResultData } from './AnalysisResults'
+import { LlmConfigPanel } from './LlmConfigPanel'
 import type { SelectedDocument } from '@/lib/validation/schemas'
 
 interface AnalysisDoc {
@@ -26,6 +27,7 @@ interface Props {
   ettDocuments: Array<{ id: string; filename: string; url: string }>
   initialAnalysis: AnalysisResultData | null
   lang: string
+  isAdmin?: boolean
 }
 
 const TYPE_BADGE: Record<string, { bg: string; label: string }> = {
@@ -34,7 +36,7 @@ const TYPE_BADGE: Record<string, { bg: string; label: string }> = {
   software: { bg: 'bg-emerald-600', label: 'SW' },
 }
 
-export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDocuments, initialAnalysis, lang: _lang }: Props) {
+export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDocuments, initialAnalysis, lang: _lang, isAdmin = false }: Props) {
   const t = useTranslations('analysis')
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -165,6 +167,9 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
         projectId={projectId}
         t={t}
       />
+
+      {/* LLM Config (admin only) */}
+      <LlmConfigPanel projectId={projectId} isAdmin={isAdmin} />
 
       {/* Run Analysis */}
       <section className="border rounded-md p-5" style={{ borderColor: 'var(--color-hairline)' }}>

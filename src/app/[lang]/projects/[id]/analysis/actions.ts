@@ -203,7 +203,10 @@ export async function triggerAnalysis(projectId: string, selectedDocuments: unkn
 
   if (insertError) return { error: insertError.message }
 
-  await supabase.from('projects').update({ metadata: { analysis_results_id: analysis.id } }).eq('id', projectId)
+  // Merge analysis_results_id into existing metadata (preserve llmConfig etc.)
+  const { data: existingProject } = await supabase.from('projects').select('metadata').eq('id', projectId).single()
+  const existingMetadata = (existingProject?.metadata ?? {}) as Record<string, unknown>
+  await supabase.from('projects').update({ metadata: { ...existingMetadata, analysis_results_id: analysis.id } }).eq('id', projectId)
 
   // Trigger document analysis in the background (fire-and-forget)
   // The /api/analyze-documents endpoint processes all docs, calls LLM,

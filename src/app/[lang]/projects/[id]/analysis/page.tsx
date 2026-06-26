@@ -21,6 +21,14 @@ export default async function ProjectAnalysisPage({ params }: Props) {
   const t = await getTranslations('analysis')
   const supabase = await createSupabaseServerClient()
 
+  // Check admin role
+  let isAdmin = false
+  try {
+    const { getUserRole } = await import('@/lib/roles')
+    const role = await getUserRole()
+    isAdmin = role === 'admin'
+  } catch { /* default to false */ }
+
   const { data: project, error } = await supabase
     .from('projects')
     .select('id, name')
@@ -94,6 +102,7 @@ export default async function ProjectAnalysisPage({ params }: Props) {
           error_message?: string | null
         } | null}
         lang={lang}
+        isAdmin={isAdmin}
       />
     </main>
   )

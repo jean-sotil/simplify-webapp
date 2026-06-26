@@ -21,6 +21,14 @@ export default async function ProjectSustentoPage({ params }: Props) {
   const t = await getTranslations('sustento')
   const supabase = await createSupabaseServerClient()
 
+  // Check admin role
+  let isAdmin = false
+  try {
+    const { getUserRole } = await import('@/lib/roles')
+    const role = await getUserRole()
+    isAdmin = role === 'admin'
+  } catch { /* default to false */ }
+
   const { data: project, error } = await supabase
     .from('projects')
     .select('id, name')
@@ -85,6 +93,7 @@ export default async function ProjectSustentoPage({ params }: Props) {
           analysisCompletedAt={(analysis as { completed_at?: string }).completed_at || null}
           initialCarpetaUrl={(analysis as { sustento_carpeta_digital_url?: string }).sustento_carpeta_digital_url || null}
           lang={lang}
+          isAdmin={isAdmin}
         />
       )}
     </main>

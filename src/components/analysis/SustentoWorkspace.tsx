@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { UnfoundRequirementsTable } from './UnfoundRequirementsTable'
+import { LlmConfigPanel } from './LlmConfigPanel'
 
 interface UnfoundReq {
   requirementId: string
@@ -25,9 +26,10 @@ interface Props {
   analysisCompletedAt: string | null
   initialCarpetaUrl: string | null
   lang: string
+  isAdmin?: boolean
 }
 
-export function SustentoWorkspace({ projectId, projectName: _projectName, analysisId, analysisMetadata, analysisCompletedAt, initialCarpetaUrl, lang: _lang }: Props) {
+export function SustentoWorkspace({ projectId, projectName: _projectName, analysisId, analysisMetadata, analysisCompletedAt, initialCarpetaUrl, lang: _lang, isAdmin = false }: Props) {
   const t = useTranslations('sustento')
 
   const [carpetaLoading, setCarpetaLoading] = useState(false)
@@ -360,6 +362,9 @@ export function SustentoWorkspace({ projectId, projectName: _projectName, analys
           </p>
         )}
       </section>
+
+      {/* LLM Config (admin only) */}
+      <LlmConfigPanel projectId={projectId} isAdmin={isAdmin} />
 
       {/* Run Sustento Analysis */}
       {sustentoDocs.length > 0 && unfoundRequirements.length > 0 && (

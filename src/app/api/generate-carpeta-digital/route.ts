@@ -518,38 +518,51 @@ export async function POST(request: NextRequest) {
 
         for (const reqId of linkedReqIds) {
           // Use exactText from LLM (requirement_matches) — this is the actual text found in the sustento doc
-          const exactText = reqMatches[reqId] || ''
-          if (!exactText) continue
+          // Format: "[p2]exact text here" where [pN] is optional page indicator
+          const rawMatch = reqMatches[reqId] || ''
+          if (!rawMatch) continue
 
-          // Strategy: concatenate all text items per page and search for the exactText substring
-          // Use a distinctive fragment from the middle/end of exactText (usually more specific)
+          // Extract page number hint and clean exactText
+          let hintPage = -1
+          let exactText = rawMatch
+          const pageHintMatch = rawMatch.match(/^\[p(\d+)\](.*)$/)
+          if (pageHintMatch) {
+            hintPage = parseInt(pageHintMatch[1], 10)
+            exactText = pageHintMatch[2]
+          }
+
+          if (!exactText.trim()) continue
+
+          // Strategy: Use LLM page hint first, fallback to substring search
           const exactLower = exactText.toLowerCase().replace(/\s+/g, ' ').trim()
           
-          // Try multiple fragments of different lengths to find the page
-          const fragments = [
-            exactLower.substring(0, 50),
-            exactLower.substring(0, 35),
-            exactLower.substring(0, 25),
-            // Also try from later in the text (more specific usually)
-            exactLower.length > 60 ? exactLower.substring(20, 60) : '',
-          ].filter(f => f.length >= 15)
-
           let bestPage = -1
 
-          for (let pageIdx = 0; pageIdx < srcDoc.getPageCount(); pageIdx++) {
-            const pageNum = pageIdx + 1
-            const textItems = textPositionsByPage.get(pageNum) || []
-            // Concatenate all text in the page
-            const pageText = textItems.map(item => item.str).join(' ').toLowerCase().replace(/\s+/g, ' ')
-            
-            // Try each fragment
-            for (const fragment of fragments) {
-              if (pageText.includes(fragment)) {
-                bestPage = pageNum
-                break
+          // If LLM provided a page number, use it directly
+          if (hintPage > 0 && hintPage <= srcDoc.getPageCount()) {
+            bestPage = hintPage
+          } else {
+            // Fallback: search for the exactText as substring in each page
+            const fragments = [
+              exactLower.substring(0, 50),
+              exactLower.substring(0, 35),
+              exactLower.substring(0, 25),
+              exactLower.length > 60 ? exactLower.substring(20, 60) : '',
+            ].filter(f => f.length >= 15)
+
+            for (let pageIdx = 0; pageIdx < srcDoc.getPageCount(); pageIdx++) {
+              const pageNum = pageIdx + 1
+              const textItems = textPositionsByPage.get(pageNum) || []
+              const pageText = textItems.map(item => item.str).join(' ').toLowerCase().replace(/\s+/g, ' ')
+              
+              for (const fragment of fragments) {
+                if (pageText.includes(fragment)) {
+                  bestPage = pageNum
+                  break
+                }
               }
+              if (bestPage > 0) break
             }
-            if (bestPage > 0) break
           }
 
           if (bestPage > 0) {

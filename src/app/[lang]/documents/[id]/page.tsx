@@ -63,10 +63,12 @@ export default async function DocumentDetailPage({ params }: Props) {
               ? 'bg-[var(--color-accent-blue)] text-white'
               : doc.document_type === 'software'
                 ? 'bg-emerald-600 text-white'
-                : 'bg-[var(--color-accent-orange)] text-white'
+                : doc.document_type === 'sustento'
+                  ? 'bg-violet-600 text-white'
+                  : 'bg-[var(--color-accent-orange)] text-white'
           }`}
         >
-          {doc.document_type === 'ett' ? 'ETT' : doc.document_type === 'hardware' ? 'Hardware' : 'Software'}
+          {doc.document_type === 'ett' ? 'ETT' : doc.document_type === 'hardware' ? 'Hardware' : doc.document_type === 'sustento' ? 'Sustento' : 'Software'}
         </span>
         <h1 className="mt-2 text-2xl font-semibold" style={{ color: 'var(--color-ink)' }}>
           {doc.filename}
