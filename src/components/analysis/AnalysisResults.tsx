@@ -204,7 +204,7 @@ export function AnalysisResults({ result: initialResult, projectId }: AnalysisRe
           ● {t('complete')}
         </span>
         {completedAt && (
-          <span className="text-xs" style={{ color: 'var(--color-mute)' }}>{completedAt}</span>
+          <span className="text-xs" style={{ color: 'var(--color-mute)' }} suppressHydrationWarning>{completedAt}</span>
         )}
       </div>
 

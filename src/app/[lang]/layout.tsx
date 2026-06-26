@@ -42,12 +42,13 @@ export default async function LocaleLayout({ children, params }: Props) {
     <NextIntlClientProvider messages={messages}>
       <AccessibilitySkipLink />
       <Navigation lang={lang} isAdmin={userRole === 'admin'} userEmail={userEmail} />
-      <div id="main-content" className="flex-1">
+      <div id="main-content" className="flex-1" suppressHydrationWarning>
         {children}
       </div>
       <footer
         className="border-t mt-16 py-5"
         style={{ borderColor: 'var(--color-hairline)' }}
+        suppressHydrationWarning
       >
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-center gap-3">
           <p className="text-xs" style={{ color: 'var(--color-mute)' }}>
