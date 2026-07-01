@@ -42,6 +42,14 @@ export async function uploadDocument(formData: FormData) {
   // consumed state; converting to Buffer guarantees undici gets a clean body.
   const fileBuffer = Buffer.from(await file.arrayBuffer())
 
+  // Check if PDF is encrypted (reject encrypted files)
+  try {
+    const { PDFDocument } = await import('pdf-lib')
+    await PDFDocument.load(fileBuffer)
+  } catch {
+    return { error: 'This PDF is encrypted or password-protected. Please upload an unencrypted version of the file.' }
+  }
+
   // Upload original file to Vercel Blob
   let blobUrl: string
   try {
@@ -190,8 +198,20 @@ export async function indexUploadedDocument(params: {
       throw new Error(`Unexpected content-type from blob: ${contentType}`)
     }
     const buffer = await response.arrayBuffer()
+
+    // Check if PDF is encrypted (reject encrypted files)
+    try {
+      const { PDFDocument } = await import('pdf-lib')
+      await PDFDocument.load(buffer)
+    } catch {
+      return { error: 'This PDF is encrypted or password-protected. Please upload an unencrypted version of the file.' }
+    }
+
     extractedText = await extractTextFromPdf(buffer)
   } catch (err) {
+    if (err instanceof Error && err.message.includes('encrypted')) {
+      return { error: err.message }
+    }
     indexingWarning = err instanceof Error ? err.message : 'PDF text extraction failed'
     console.error('[indexUploadedDocument] PDF extraction error:', err)
   }

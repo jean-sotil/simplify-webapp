@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Helper: fetch and embed a PDF
+  // Helper: fetch and embed a PDF (handles encrypted PDFs gracefully)
   async function embedPdfPages(url: string): Promise<number> {
     try {
       const headers: Record<string, string> = {}
@@ -197,16 +197,40 @@ export async function POST(request: NextRequest) {
       const res = await fetch(url, { headers })
       if (!res.ok) throw new Error(`Fetch failed: ${res.status}`)
       const buffer = await res.arrayBuffer()
-      const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-      const pageIndices = srcDoc.getPageIndices()
-      const copiedPages = await finalPdf.copyPages(srcDoc, pageIndices)
-      for (const page of copiedPages) {
-        finalPdf.addPage(page)
+
+      // Try loading normally first
+      try {
+        const srcDoc = await PDFDocument.load(buffer)
+        const pageIndices = srcDoc.getPageIndices()
+        const copiedPages = await finalPdf.copyPages(srcDoc, pageIndices)
+        for (const page of copiedPages) {
+          finalPdf.addPage(page)
+        }
+        return copiedPages.length
+      } catch {
+        // PDF is encrypted — try with ignoreEncryption as last resort
+        // Some encrypted PDFs work with this flag, others produce blank pages
+        try {
+          const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+          // Check if pages have content by verifying page count > 0
+          const pageIndices = srcDoc.getPageIndices()
+          if (pageIndices.length > 0) {
+            const copiedPages = await finalPdf.copyPages(srcDoc, pageIndices)
+            for (const page of copiedPages) {
+              finalPdf.addPage(page)
+            }
+            return copiedPages.length
+          }
+        } catch { /* fall through to placeholder */ }
+
+        // Fallback: add placeholder page
+        const page = finalPdf.addPage([612, 792])
+        page.drawText('PDF encrypted - view original file', { x: 50, y: 400, size: 14, font: fontRegular, color: rgb(0.5, 0, 0) })
+        page.drawText(url.split('/').pop() || '', { x: 50, y: 370, size: 10, font: fontRegular, color: rgb(0.3, 0.3, 0.3) })
+        return 1
       }
-      return copiedPages.length
     } catch (err) {
       console.error(`[carpeta-digital] Failed to embed PDF from ${url}:`, err)
-      // Add a placeholder page
       const page = finalPdf.addPage([612, 792])
       page.drawText('PDF could not be loaded', { x: 50, y: 400, size: 14, font: fontRegular, color: rgb(0.5, 0, 0) })
       return 1
@@ -222,29 +246,64 @@ export async function POST(request: NextRequest) {
   const indexEntries: Array<{ label: string; pageNum: number }> = []
   let currentPageCount = 1 // Start at 1 (index takes page 1)
 
-  // Process each partida
+  // Collect ALL annotations per document across all partidas
+  // This prevents embedding the same document multiple times
+  // Also deduplicate by file URL (same file uploaded multiple times = different documentIds)
+  // Verify documents still exist in the DB before including them
+  const existingDocIds = new Set<string>()
+  const allDocIds = processedDocs.map(d => d.documentId)
+  if (allDocIds.length > 0) {
+    const { data: existingDocs } = await supabaseAdmin
+      .from('documents')
+      .select('id')
+      .in('id', allDocIds)
+    for (const doc of existingDocs ?? []) {
+      existingDocIds.add(doc.id)
+    }
+  }
+
+  // Process each partida — each doc can appear under multiple partidas with different annotations
   for (const [partida, { partidaDesc, annotations }] of sortedPartidas) {
+    // Only include found annotations for this partida
+    const foundAnnotations = annotations.filter(a => a.found && existingDocIds.has(a.documentId))
+    if (foundAnnotations.length === 0) continue
+
     // Title page for this partida
     currentPageCount++
     const titleLabel = partidaDesc || partida
     indexEntries.push({ label: titleLabel, pageNum: currentPageCount })
     addTitlePage(titleLabel.toUpperCase(), 20)
 
-    // Group annotations by document
-    const byDoc = new Map<string, typeof annotations>()
-    for (const ann of annotations) {
+    // Group found annotations by document (deduplicate by filename within this partida)
+    const seenFilenamesInPartida = new Set<string>()
+    const byDoc = new Map<string, typeof foundAnnotations>()
+    for (const ann of foundAnnotations) {
+      if (seenFilenamesInPartida.has(ann.docFilename)) {
+        // Add annotation to existing doc entry with same filename
+        const existingDocId = [...byDoc.keys()].find(id => byDoc.get(id)![0].docFilename === ann.docFilename)
+        if (existingDocId) {
+          const existing = byDoc.get(existingDocId)!
+          if (!existing.some(a => a.requirementId === ann.requirementId)) {
+            existing.push(ann)
+          }
+        }
+        continue
+      }
+      seenFilenamesInPartida.add(ann.docFilename)
       if (!byDoc.has(ann.documentId)) byDoc.set(ann.documentId, [])
-      byDoc.get(ann.documentId)!.push(ann)
+      const docAnns = byDoc.get(ann.documentId)!
+      if (!docAnns.some(a => a.requirementId === ann.requirementId)) {
+        docAnns.push(ann)
+      }
     }
 
-    // Embed each document's pages
+    // Embed each document with its partida-specific annotations
     for (const [docId, docAnnotations] of byDoc) {
       const docUrl = docAnnotations[0].docUrl
       if (!docUrl) continue
 
       const startPage = currentPageCount + 1
 
-      // Fetch and annotate the PDF using exact text coordinates from pdfjs
       try {
         const headers: Record<string, string> = {}
         if (process.env.BLOB_READ_WRITE_TOKEN) {
@@ -255,15 +314,27 @@ export async function POST(request: NextRequest) {
         const buffer = await res.arrayBuffer()
         const pdfBuffer = Buffer.from(buffer)
 
-        // Step 1: Try to use unpdf (getDocumentProxy) for text coordinate extraction
-        // More reliable in serverless than pdfjs-dist direct import
+        // Safety check: skip encrypted PDFs
+        try {
+          await PDFDocument.load(pdfBuffer)
+        } catch {
+          console.warn(`[carpeta-digital] Doc ${docId} is encrypted, skipping`)
+          const page = finalPdf.addPage([612, 792])
+          page.drawText('PDF encrypted - please re-upload', { x: 50, y: 400, size: 12, font: fontRegular, color: rgb(0.5, 0, 0) })
+          currentPageCount++
+          for (const ann of docAnnotations) {
+            pagePointMap.set(ann.requirementId, { page: startPage, point: 0 })
+          }
+          continue
+        }
+
+        // Extract text positions using unpdf
         let textPositionsByPage = new Map<number, Array<{ str: string; x: number; y: number; width: number; height: number }>>()
         const neededPages = new Set(docAnnotations.filter(a => a.pageNum).map(a => a.pageNum!))
 
         try {
           const { getDocumentProxy } = await import('unpdf')
           const pdfjsDoc = await getDocumentProxy(new Uint8Array(pdfBuffer))
-
           for (const pageNum of neededPages) {
             if (pageNum < 1 || pageNum > pdfjsDoc.numPages) continue
             const pjPage = await pdfjsDoc.getPage(pageNum)
@@ -271,27 +342,21 @@ export async function POST(request: NextRequest) {
             const items: Array<{ str: string; x: number; y: number; width: number; height: number }> = []
             for (const item of textContent.items) {
               if (!('str' in item) || !item.str.trim()) continue
-              const tx = item.transform[4]
-              const ty = item.transform[5]
-              const fontSize = Math.abs(item.transform[3]) || Math.abs(item.transform[0])
-              items.push({ str: item.str, x: tx, y: ty, width: item.width, height: fontSize })
+              items.push({ str: item.str, x: item.transform[4], y: item.transform[5], width: item.width, height: Math.abs(item.transform[3]) || Math.abs(item.transform[0]) })
             }
             textPositionsByPage.set(pageNum, items)
           }
           await pdfjsDoc.destroy()
-        } catch (pdfjsErr) {
-          console.warn(`[carpeta-digital] unpdf text extraction failed for doc ${docId}, using fallback annotations:`, pdfjsErr instanceof Error ? pdfjsErr.message : pdfjsErr)
+        } catch (err) {
+          console.warn(`[carpeta-digital] unpdf extraction failed for doc ${docId}:`, err instanceof Error ? err.message : err)
           textPositionsByPage = new Map()
         }
 
-        // Step 2: Use pdf-lib to draw annotations at exact positions
+        // Load PDF and annotate
         const srcDoc = await PDFDocument.load(pdfBuffer, { ignoreEncryption: true })
         const boldFontEmbed = await srcDoc.embedFont(StandardFonts.HelveticaBold)
 
-        // Track highlighted text items per page to avoid double-highlighting
-        const highlightedItemsByPage = new Map<number, Set<string>>()
-
-        // Group annotations by page for correlative numbering PER PAGE
+        // Group annotations by page
         const annsByPage = new Map<number, typeof docAnnotations>()
         for (const ann of docAnnotations) {
           if (!ann.pageNum || ann.pageNum > srcDoc.getPageCount()) continue
@@ -299,7 +364,9 @@ export async function POST(request: NextRequest) {
           annsByPage.get(ann.pageNum)!.push(ann)
         }
 
-        let globalPointCounter = 0
+        // Draw annotations — page-relative numbering starting at 1 per page
+        const highlightedItemsByPage = new Map<number, Set<string>>()
+
         for (const [pageNum, pageAnns] of annsByPage) {
           const page = srcDoc.getPage(pageNum - 1)
           const { width: pageWidth } = page.getSize()
@@ -309,131 +376,53 @@ export async function POST(request: NextRequest) {
 
           let pagePointCounter = 0
           for (const ann of pageAnns) {
-            globalPointCounter++
-            pagePointCounter++
-
-            let annotated = false
-
-            // Try to find exact text position using exactText
+            // Single annotation mechanism: find exactText in text items
             if (ann.exactText && textItems.length > 0) {
-              const searchWords = ann.exactText.toLowerCase().split(/\s+/).filter(w => w.length >= 3).slice(0, 10)
-              const matches: Array<{ x: number; y: number; width: number; height: number; key: string }> = []
+              const searchWords = ann.exactText.toLowerCase().split(/\s+/).filter(w => w.length >= 4).slice(0, 8)
+              const minWordsRequired = 2 // Fixed minimum — any item with 2+ matching words qualifies
+
+              // Find the single best matching text item (highest word overlap)
+              let bestItem: { x: number; y: number; width: number; height: number; key: string; score: number } | null = null
 
               for (const item of textItems) {
-                if (matches.length >= 5) break
                 const itemKey = `${item.x},${item.y},${item.str}`
-                if (highlightedItems.has(itemKey)) continue // Skip already highlighted
+                if (highlightedItems.has(itemKey)) continue
                 const itemLower = item.str.toLowerCase()
                 const matchCount = searchWords.filter(w => itemLower.includes(w)).length
-                if (matchCount >= 1) {
-                  matches.push({ ...item, key: itemKey })
+                if (matchCount >= minWordsRequired && (!bestItem || matchCount > bestItem.score)) {
+                  bestItem = { ...item, key: itemKey, score: matchCount }
                 }
               }
 
-              if (matches.length > 0) {
-                // Mark items as highlighted
-                for (const m of matches) highlightedItems.add(m.key)
+              if (bestItem) {
+                pagePointCounter++ // Only increment when we actually draw
+                highlightedItems.add(bestItem.key)
 
-                // Calculate bounding box of all matched text items
-                const minX = Math.min(...matches.map(m => m.x))
-                const minY = Math.min(...matches.map(m => m.y))
-                const maxX = Math.max(...matches.map(m => m.x + m.width))
-                const maxY = Math.max(...matches.map(m => m.y + m.height))
+                const rectX = Math.max(25, bestItem.x - 2)
+                const rectY = bestItem.y - 2
+                const rectWidth = Math.min(pageWidth - 50, bestItem.width + 4)
+                const rectHeight = bestItem.height + 4
 
-                const rectX = Math.max(25, minX - 5)
-                const rectY = minY - 5
-                const rectWidth = Math.min(pageWidth - 50, maxX - minX + 10)
-                const rectHeight = maxY - minY + 10
+                // Yellow highlight (thin underline style, like manual highlighting)
+                page.drawRectangle({ x: rectX, y: rectY, width: rectWidth, height: rectHeight, color: rgb(1, 1, 0), opacity: 0.4 })
+                // Thin red border
+                page.drawRectangle({ x: rectX - 1, y: rectY - 1, width: rectWidth + 2, height: rectHeight + 2, borderColor: rgb(1, 0, 0), borderWidth: 1 })
+                // Point number (small, red, to the right of the highlight)
+                page.drawText(String(pagePointCounter), { x: rectX + rectWidth + 4, y: rectY + 1, size: 9, font: boldFontEmbed, color: rgb(1, 0, 0) })
 
-                // Yellow highlight
-                page.drawRectangle({
-                  x: rectX,
-                  y: rectY,
-                  width: rectWidth,
-                  height: rectHeight,
-                  color: rgb(1, 1, 0),
-                  opacity: 0.25,
-                })
-                // Red border (2px)
-                page.drawRectangle({
-                  x: rectX - 3,
-                  y: rectY - 3,
-                  width: rectWidth + 6,
-                  height: rectHeight + 6,
-                  borderColor: rgb(1, 0, 0),
-                  borderWidth: 2,
-                })
-                // Point number on the left margin — at TOP of the rectangle
-                page.drawText(String(pagePointCounter), {
-                  x: Math.max(8, rectX - 20),
-                  y: rectY + rectHeight - 2,
-                  size: 12,
-                  font: boldFontEmbed,
-                  color: rgb(1, 0, 0),
-                })
-
-                annotated = true
+                // Record page/point for compliance matrix
+                const absolutePage = startPage + (pageNum - 1)
+                pagePointMap.set(ann.requirementId, { page: absolutePage, point: pagePointCounter })
               }
             }
-
-            // Fallback: draw visible annotation at calculated position
-            if (!annotated) {
-              const { height: pgHeight } = page.getSize()
-              // Position from the top, staggered per annotation on this page
-              const fallbackY = pgHeight - 80 - ((pagePointCounter - 1) * 50)
-              if (fallbackY > 50) {
-                const rectX = 50
-                const rectWidth = pageWidth - 100
-                const rectHeight = 35
-
-                // Yellow highlight background
-                page.drawRectangle({
-                  x: rectX,
-                  y: fallbackY - 5,
-                  width: rectWidth,
-                  height: rectHeight,
-                  color: rgb(1, 1, 0),
-                  opacity: 0.2,
-                })
-                // Red border (2px)
-                page.drawRectangle({
-                  x: rectX - 3,
-                  y: fallbackY - 8,
-                  width: rectWidth + 6,
-                  height: rectHeight + 6,
-                  borderColor: rgb(1, 0, 0),
-                  borderWidth: 2,
-                })
-                // Point number at top-left
-                page.drawText(String(pagePointCounter), {
-                  x: rectX - 18,
-                  y: fallbackY + rectHeight - 12,
-                  size: 12,
-                  font: boldFontEmbed,
-                  color: rgb(1, 0, 0),
-                })
-                // REQ label inside the rectangle
-                page.drawText(ann.requirementId, {
-                  x: rectX + 5,
-                  y: fallbackY + 5,
-                  size: 8,
-                  font: boldFontEmbed,
-                  color: rgb(0.5, 0, 0),
-                })
-              }
-            }
-
-            // Record page/point for compliance matrix (uses page-relative counter)
-            const absolutePage = startPage + (pageNum - 1)
-            pagePointMap.set(ann.requirementId, { page: absolutePage, point: pagePointCounter })
           }
         }
 
         // Copy annotated pages to final PDF
         const pageIndices = srcDoc.getPageIndices()
         const copiedPages = await finalPdf.copyPages(srcDoc, pageIndices)
-        for (const page of copiedPages) {
-          finalPdf.addPage(page)
+        for (const copiedPage of copiedPages) {
+          finalPdf.addPage(copiedPage)
         }
         currentPageCount += copiedPages.length
       } catch (err) {
@@ -596,7 +585,7 @@ export async function POST(request: NextRequest) {
               // Use the last sentence if available (usually the most specific/conclusive)
               const targetSentence = sentences.length > 1 ? sentences[sentences.length - 1] : sentences[0] || exactLower.substring(0, 60)
               const targetWords = targetSentence.split(/\s+/).filter(w => w.length >= 4).slice(0, 6)
-              const minWords = Math.max(2, Math.ceil(targetWords.length * 0.5))
+              const minWords = 2 // Fixed minimum, same as analysis annotations
 
               // Find the single best matching text item
               let bestItem: { x: number; y: number; width: number; height: number; key: string } | null = null
@@ -616,17 +605,17 @@ export async function POST(request: NextRequest) {
               if (bestItem) {
                 highlightedItems.add(bestItem.key)
 
-                const rectX = Math.max(25, bestItem.x - 5)
-                const rectY = bestItem.y - 5
-                const rectWidth = Math.min(pageWidth - 50, bestItem.width + 10)
-                const rectHeight = bestItem.height + 10
+                const rectX = Math.max(25, bestItem.x - 2)
+                const rectY = bestItem.y - 2
+                const rectWidth = Math.min(pageWidth - 50, bestItem.width + 4)
+                const rectHeight = bestItem.height + 4
 
-                // Yellow highlight
-                page.drawRectangle({ x: rectX, y: rectY, width: rectWidth, height: rectHeight, color: rgb(1, 1, 0), opacity: 0.25 })
-                // Red border
-                page.drawRectangle({ x: rectX - 3, y: rectY - 3, width: rectWidth + 6, height: rectHeight + 6, borderColor: rgb(1, 0, 0), borderWidth: 2 })
-                // Point number
-                page.drawText(String(pagePointCounter), { x: Math.max(8, rectX - 20), y: rectY + rectHeight - 2, size: 12, font: boldFontEmbed, color: rgb(1, 0, 0) })
+                // Yellow highlight (thin underline style)
+                page.drawRectangle({ x: rectX, y: rectY, width: rectWidth, height: rectHeight, color: rgb(1, 1, 0), opacity: 0.4 })
+                // Thin red border
+                page.drawRectangle({ x: rectX - 1, y: rectY - 1, width: rectWidth + 2, height: rectHeight + 2, borderColor: rgb(1, 0, 0), borderWidth: 1 })
+                // Point number (small, to the right)
+                page.drawText(String(pagePointCounter), { x: rectX + rectWidth + 4, y: rectY + 1, size: 9, font: boldFontEmbed, color: rgb(1, 0, 0) })
 
                 annotated = true
               }

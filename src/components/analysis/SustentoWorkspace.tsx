@@ -50,6 +50,7 @@ export function SustentoWorkspace({ projectId, projectName: _projectName, analys
   const [addingSustento, setAddingSustento] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [dragOver, setDragOver] = useState(false)
   const [searchSustento, setSearchSustento] = useState('')
 
   // Sustento analysis state
@@ -255,10 +256,59 @@ export function SustentoWorkspace({ projectId, projectName: _projectName, analys
             {/* Upload new sustento file */}
             <div className="mb-3 pt-2 border-t" style={{ borderColor: 'var(--color-hairline)' }}>
               <label
-                className="flex items-center justify-center gap-2 border-2 border-dashed rounded-sm px-4 py-3 cursor-pointer hover:bg-white transition-colors"
-                style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
+                className={`flex flex-col items-center justify-center gap-1 border-2 border-dashed rounded-sm px-4 py-4 cursor-pointer transition-colors ${dragOver ? 'bg-violet-50' : 'hover:bg-white'}`}
+                style={{ borderColor: dragOver ? '#8b5cf6' : uploading ? '#8b5cf6' : 'var(--color-hairline)', color: 'var(--color-mute)' }}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+                onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+                onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
+                onDrop={async (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  setDragOver(false)
+                  const files = e.dataTransfer.files
+                  if (!files || files.length === 0) return
+                  const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
+                  if (pdfFiles.length === 0) return
+                  setUploading(true)
+                  setUploadError(null)
+                  try {
+                    const newDocIds: string[] = []
+                    for (const file of pdfFiles) {
+                      const formData = new FormData()
+                      formData.append('file', file)
+                      formData.append('documentType', 'sustento')
+                      const { uploadDocument } = await import('@/app/[lang]/documents/actions')
+                      const result = await uploadDocument(formData)
+                      if (result && 'error' in result && result.error) {
+                        setUploadError(typeof result.error === 'string' ? result.error : 'Upload failed')
+                        break
+                      }
+                      if (result && 'data' in result && result.data?.id) {
+                        newDocIds.push(result.data.id)
+                      }
+                    }
+                    if (newDocIds.length > 0) {
+                      await fetch('/api/project-analysis-docs', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ projectId, documentIds: newDocIds }),
+                      })
+                      await loadSustentoDocs()
+                      const res = await fetch('/api/documents')
+                      if (res.ok) {
+                        const data = await res.json()
+                        setAvailableSustento((data.documents || []).filter((d: SustentoDoc) => d.document_type === 'sustento'))
+                      }
+                    }
+                  } catch (err) {
+                    setUploadError(err instanceof Error ? err.message : 'Upload failed')
+                  } finally {
+                    setUploading(false)
+                  }
+                }}
               >
                 <span className="text-xs">{uploading ? t('uploadingFile') : t('uploadSustento')}</span>
+                <span className="text-[10px]" style={{ color: 'var(--color-mute)' }}>Click or drag & drop PDF files</span>
                 <input
                   type="file"
                   accept=".pdf"
@@ -278,19 +328,21 @@ export function SustentoWorkspace({ projectId, projectName: _projectName, analys
                         formData.append('documentType', 'sustento')
                         const { uploadDocument } = await import('@/app/[lang]/documents/actions')
                         const result = await uploadDocument(formData)
+                        if (result && 'error' in result && result.error) {
+                          setUploadError(typeof result.error === 'string' ? result.error : 'Upload failed')
+                          break
+                        }
                         if (result && 'data' in result && result.data?.id) {
                           newDocIds.push(result.data.id)
                         }
                       }
                       if (newDocIds.length > 0) {
-                        // Add to project analysis docs
                         await fetch('/api/project-analysis-docs', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({ projectId, documentIds: newDocIds }),
                         })
                         await loadSustentoDocs()
-                        // Reload available docs
                         const res = await fetch('/api/documents')
                         if (res.ok) {
                           const data = await res.json()

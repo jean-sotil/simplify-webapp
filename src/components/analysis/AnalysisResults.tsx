@@ -61,6 +61,8 @@ export function AnalysisResults({ result: initialResult, projectId }: AnalysisRe
             setResult(data)
             if (data.status === 'completed' || data.status === 'failed') {
               if (timerRef.current) clearInterval(timerRef.current)
+              // Refresh the page to show final results with buttons
+              window.location.reload()
             }
           }
         } catch { /* ignore polling errors */ }

@@ -325,7 +325,6 @@ export async function POST(request: NextRequest) {
 
       const llmModel = llmConfig?.model || 'openai/gpt-4o'
       const llmTemp = llmConfig?.temperature ?? 0
-      const maxTextLen = llmConfig?.maxExactTextLength ?? 120
 
       let strictnessRule = 'If the document clearly provides the capability, mark it as found'
       if (llmConfig?.strictness === 'strict') {
@@ -333,6 +332,8 @@ export async function POST(request: NextRequest) {
       } else if (llmConfig?.strictness === 'permissive') {
         strictnessRule = 'Mark as found if there is any reasonable indication of compliance. When in doubt, mark as found.'
       }
+
+      console.log(`[analyze] LLM Config: model=${llmModel}, temp=${llmTemp}, strictness=${llmConfig?.strictness ?? 'balanced'}, rule="${strictnessRule}"`)
 
       const systemPrompt = `You are a technical compliance analyst specializing in Peruvian public procurement (licitaciones).
 You verify whether a vendor's technical datasheet satisfies requirements from an ETT (Especificacion Tecnica de Terminos).
@@ -352,7 +353,7 @@ MATCHING RULES:
 
 EVIDENCE RULES:
 - Return the EXACT text fragment from the PDF (copy verbatim, do NOT paraphrase)
-- The exactText MUST be a single sentence or line (max ${maxTextLen} characters) - the most specific fragment
+- Keep exactText concise (1-2 lines preferred) but include enough text to demonstrate compliance
 - Include the page number where evidence was found
 - If you cannot find clear evidence, set found to false
 

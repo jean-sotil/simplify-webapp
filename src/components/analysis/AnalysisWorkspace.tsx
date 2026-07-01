@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useTransition } from 'react'
+import { useState, useEffect, useTransition, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { triggerAnalysis } from '@/app/[lang]/projects/[id]/analysis/actions'
@@ -94,6 +94,14 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
   const availableProviders = allDocs.filter(d => (d.document_type === 'hardware' || d.document_type === 'software') && !addedDocIds.has(d.id))
 
   const canRunAnalysis = ettDocs.length > 0 && providerDocs.length > 0
+  const isAnalysisInProgress = analysisRunning || initialAnalysis?.status === 'processing' || initialAnalysis?.status === 'pending'
+
+  // Reset analysisRunning when the analysis completes
+  useEffect(() => {
+    if (initialAnalysis?.status === 'completed' || initialAnalysis?.status === 'failed') {
+      setAnalysisRunning(false)
+    }
+  }, [initialAnalysis?.status])
 
   async function handleAddDocs(documentIds: string[]) {
     await fetch('/api/project-analysis-docs', {
@@ -128,12 +136,8 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
         setTriggerError(typeof result.error === 'string' ? result.error : 'Error')
         setAnalysisRunning(false)
       } else {
-        // Analysis triggered successfully — refresh to show results
-        // Small delay to let the analysis start processing
-        setTimeout(() => {
-          setAnalysisRunning(false)
-          router.refresh()
-        }, 3000)
+        // Analysis triggered — keep button disabled, page will refresh when complete
+        router.refresh()
       }
     })
   }
@@ -176,12 +180,12 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
         <div className="flex items-center gap-3">
           <button
             type="button"
-            disabled={!canRunAnalysis || isPending || analysisRunning}
+            disabled={!canRunAnalysis || isPending || isAnalysisInProgress}
             onClick={handleRunAnalysis}
             className="rounded-sm px-5 py-3 text-sm font-medium transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-on-primary)' }}
           >
-            {isPending || analysisRunning ? t('triggering') : t('runAnalysisBtn')}
+            {isPending || isAnalysisInProgress ? t('triggering') : t('runAnalysisBtn')}
           </button>
           {!canRunAnalysis && (
             <span className="text-xs" style={{ color: 'var(--color-mute)' }}>
@@ -232,6 +236,9 @@ function DocumentSection({
   const [typeFilter, setTypeFilter] = useState<'all' | 'hardware' | 'software'>('all')
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [uploadDocType, setUploadDocType] = useState<'hardware' | 'software'>('hardware')
+  const [dragOver, setDragOver] = useState(false)
+  const uploadInProgress = useRef(false)
 
   const filteredAvailable = availableDocs.filter(d => {
     if (search.trim() && !d.filename.toLowerCase().includes(search.toLowerCase())) return false
@@ -342,41 +349,110 @@ function DocumentSection({
 
           {/* Upload new file */}
           <div className="mb-3 pt-2 border-t" style={{ borderColor: 'var(--color-hairline)' }}>
+            {/* Type selector for provider docs */}
+            {badgeType === 'provider' && (
+              <div className="flex gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setUploadDocType('hardware')}
+                  className={`text-xs px-3 py-1 rounded-sm border font-medium ${uploadDocType === 'hardware' ? 'bg-[var(--color-accent-orange)] text-white border-transparent' : ''}`}
+                  style={uploadDocType !== 'hardware' ? { borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' } : undefined}
+                >
+                  Hardware
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUploadDocType('software')}
+                  className={`text-xs px-3 py-1 rounded-sm border font-medium ${uploadDocType === 'software' ? 'bg-emerald-600 text-white border-transparent' : ''}`}
+                  style={uploadDocType !== 'software' ? { borderColor: 'var(--color-hairline)', color: 'var(--color-ink)' } : undefined}
+                >
+                  Software
+                </button>
+              </div>
+            )}
             <label
-              className="flex items-center justify-center gap-2 border-2 border-dashed rounded-sm px-4 py-3 cursor-pointer hover:bg-white transition-colors"
-              style={{ borderColor: 'var(--color-hairline)', color: 'var(--color-mute)' }}
+              className={`flex flex-col items-center justify-center gap-1 border-2 border-dashed rounded-sm px-4 py-4 cursor-pointer transition-colors ${dragOver ? 'bg-blue-50' : 'hover:bg-white'}`}
+              style={{ borderColor: dragOver ? 'var(--color-primary)' : uploading ? 'var(--color-primary)' : 'var(--color-hairline)', color: 'var(--color-mute)' }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true) }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(false) }}
+              onDrop={async (e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setDragOver(false)
+                if (uploadInProgress.current) return
+                uploadInProgress.current = true
+                const files = e.dataTransfer.files
+                if (!files || files.length === 0) return
+                const pdfFiles = Array.from(files).filter(f => f.type === 'application/pdf' || f.name.endsWith('.pdf'))
+                if (pdfFiles.length === 0) return
+                setUploading(true)
+                setUploadError(null)
+                try {
+                  const docType = badgeType === 'ett' ? 'ett' : uploadDocType
+                  const newDocIds: string[] = []
+                  for (const file of pdfFiles) {
+                    const formData = new FormData()
+                    formData.append('file', file)
+                    formData.append('documentType', docType)
+                    const { uploadDocument } = await import('@/app/[lang]/documents/actions')
+                    const result = await uploadDocument(formData)
+                    if (result && 'error' in result && result.error) {
+                      setUploadError(typeof result.error === 'string' ? result.error : 'Upload failed')
+                      break
+                    }
+                    if (result && 'data' in result && result.data?.id) {
+                      newDocIds.push(result.data.id)
+                    }
+                  }
+                  if (newDocIds.length > 0) {
+                    await onAdd(newDocIds)
+                    window.location.reload()
+                  }
+                } catch (err) {
+                  setUploadError(err instanceof Error ? err.message : 'Upload failed')
+                } finally {
+                  setUploading(false)
+                }
+              }}
             >
               <span className="text-xs">{uploading ? t('uploadingFile') : t('uploadNew')}</span>
+              <span className="text-[10px]" style={{ color: 'var(--color-mute)' }}>Click or drag & drop PDF files</span>
               <input
                 type="file"
                 accept=".pdf"
                 multiple
                 disabled={uploading}
                 className="hidden"
+                onDrop={(e) => { e.preventDefault(); e.stopPropagation() }}
                 onChange={async (e) => {
                   const files = e.target.files
                   if (!files || files.length === 0) return
+                  if (uploadInProgress.current) return
+                  uploadInProgress.current = true
                   setUploading(true)
                   setUploadError(null)
                   try {
-                    const docType = badgeType === 'ett' ? 'ett' : 'hardware'
+                    const docType = badgeType === 'ett' ? 'ett' : uploadDocType
                     const newDocIds: string[] = []
                     for (const file of Array.from(files)) {
                       const formData = new FormData()
                       formData.append('file', file)
                       formData.append('documentType', docType)
-                      // Use the uploadDocument server action via form submission
                       const { uploadDocument } = await import('@/app/[lang]/documents/actions')
                       const result = await uploadDocument(formData)
+                      if (result && 'error' in result && result.error) {
+                        setUploadError(typeof result.error === 'string' ? result.error : 'Upload failed')
+                        break
+                      }
                       if (result && 'data' in result && result.data?.id) {
                         newDocIds.push(result.data.id)
                       }
                     }
                     if (newDocIds.length > 0) {
                       await onAdd(newDocIds)
+                      window.location.reload()
                     }
-                    // Reload available docs
-                    window.location.reload()
                   } catch (err) {
                     setUploadError(err instanceof Error ? err.message : 'Upload failed')
                   } finally {
