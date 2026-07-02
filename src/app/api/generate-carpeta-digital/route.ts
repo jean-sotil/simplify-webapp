@@ -115,32 +115,6 @@ export async function POST(request: NextRequest) {
 
   console.log(`[carpeta-digital] Project: ${projectName}, Docs: ${processedDocs.length}, Sustento: ${sustentoDocuments.length}`)
 
-  // 4. Group annotations by partida
-  // Each partida has multiple docs that contribute annotations
-  const partidaMap = new Map<string, {
-    partidaDesc: string
-    annotations: Array<AnnotationResult & { docFilename: string; docUrl: string; documentId: string }>
-  }>()
-
-  for (const doc of processedDocs) {
-    for (const ann of doc.annotations) {
-      if (!ann.found || !ann.partida) continue
-      if (!partidaMap.has(ann.partida)) {
-        partidaMap.set(ann.partida, { partidaDesc: ann.partidaDesc || '', annotations: [] })
-      }
-      partidaMap.get(ann.partida)!.annotations.push({
-        ...ann,
-        docFilename: doc.filename,
-        docUrl: doc.originalFileUrl || '',
-        documentId: doc.documentId,
-      })
-    }
-  }
-
-  // Sort partidas
-  const sortedPartidas = Array.from(partidaMap.entries()).sort((a, b) => a[0].localeCompare(b[0]))
-  console.log(`[carpeta-digital] Partidas with annotations: ${sortedPartidas.length}`)
-
   // 5. Build the consolidated PDF
   const finalPdf = await PDFDocument.create()
   const font = await finalPdf.embedFont(StandardFonts.HelveticaBold)
@@ -262,45 +236,61 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Process each partida — each doc can appear under multiple partidas with different annotations
-  for (const [partida, { partidaDesc, annotations }] of sortedPartidas) {
-    // Only include found annotations for this partida
-    const foundAnnotations = annotations.filter(a => a.found && existingDocIds.has(a.documentId))
-    if (foundAnnotations.length === 0) continue
+  // Group ALL found annotations by document (each doc appears once with all its annotations)
+  // Deduplicate by filename (same file = same content regardless of documentId)
+  const docMap = new Map<string, {
+    docUrl: string
+    docFilename: string
+    documentId: string
+    annotations: Array<AnnotationResult & { docFilename: string; docUrl: string; documentId: string }>
+  }>()
 
-    // Title page for this partida
-    currentPageCount++
-    const titleLabel = partidaDesc || partida
-    indexEntries.push({ label: titleLabel, pageNum: currentPageCount })
-    addTitlePage(titleLabel.toUpperCase(), 20)
+  for (const doc of processedDocs) {
+    for (const ann of doc.annotations) {
+      if (!ann.found || !ann.partida) continue
+      if (!existingDocIds.has(doc.documentId)) continue
 
-    // Group found annotations by document (deduplicate by filename within this partida)
-    const seenFilenamesInPartida = new Set<string>()
-    const byDoc = new Map<string, typeof foundAnnotations>()
-    for (const ann of foundAnnotations) {
-      if (seenFilenamesInPartida.has(ann.docFilename)) {
-        // Add annotation to existing doc entry with same filename
-        const existingDocId = [...byDoc.keys()].find(id => byDoc.get(id)![0].docFilename === ann.docFilename)
-        if (existingDocId) {
-          const existing = byDoc.get(existingDocId)!
-          if (!existing.some(a => a.requirementId === ann.requirementId)) {
-            existing.push(ann)
-          }
-        }
-        continue
+      // Use filename as key for deduplication
+      if (!docMap.has(doc.filename)) {
+        docMap.set(doc.filename, {
+          docUrl: doc.originalFileUrl || '',
+          docFilename: doc.filename,
+          documentId: doc.documentId,
+          annotations: [],
+        })
       }
-      seenFilenamesInPartida.add(ann.docFilename)
-      if (!byDoc.has(ann.documentId)) byDoc.set(ann.documentId, [])
-      const docAnns = byDoc.get(ann.documentId)!
-      if (!docAnns.some(a => a.requirementId === ann.requirementId)) {
-        docAnns.push(ann)
+      const entry = docMap.get(doc.filename)!
+      // Avoid duplicate annotations for same requirement
+      if (!entry.annotations.some(a => a.requirementId === ann.requirementId)) {
+        entry.annotations.push({
+          ...ann,
+          docFilename: doc.filename,
+          docUrl: doc.originalFileUrl || '',
+          documentId: doc.documentId,
+        })
       }
     }
+  }
 
-    // Embed each document with its partida-specific annotations
-    for (const [docId, docAnnotations] of byDoc) {
-      const docUrl = docAnnotations[0].docUrl
-      if (!docUrl) continue
+  // Filter out documents with no annotations (like Blackmagic with 0 found)
+  const docsToEmbed = [...docMap.values()].filter(d => d.annotations.length > 0 && d.docUrl)
+
+  console.log(`[carpeta-digital] Documents to embed: ${docsToEmbed.length}`)
+  for (const d of docsToEmbed) {
+    console.log(`[carpeta-digital]   - ${d.docFilename}: ${d.annotations.length} annotations`)
+  }
+
+  // Process each document once with all its annotations
+  for (const docData of docsToEmbed) {
+    const { docUrl, docFilename, annotations: docAnnotations } = docData
+
+    // Add title page with document name
+    currentPageCount++
+    // Use the first partida description as label, or just the filename
+    const partidaDescs = [...new Set(docAnnotations.map(a => a.partidaDesc).filter(Boolean))]
+    const titleLabel = partidaDescs[0] || docFilename.replace('.pdf', '')
+    indexEntries.push({ label: titleLabel, pageNum: currentPageCount })
+    addTitlePage(titleLabel.toUpperCase(), 20)
 
       const startPage = currentPageCount + 1
 
@@ -318,7 +308,7 @@ export async function POST(request: NextRequest) {
         try {
           await PDFDocument.load(pdfBuffer)
         } catch {
-          console.warn(`[carpeta-digital] Doc ${docId} is encrypted, skipping`)
+          console.warn(`[carpeta-digital] Doc ${docData.documentId} is encrypted, skipping`)
           const page = finalPdf.addPage([612, 792])
           page.drawText('PDF encrypted - please re-upload', { x: 50, y: 400, size: 12, font: fontRegular, color: rgb(0.5, 0, 0) })
           currentPageCount++
@@ -348,7 +338,7 @@ export async function POST(request: NextRequest) {
           }
           await pdfjsDoc.destroy()
         } catch (err) {
-          console.warn(`[carpeta-digital] unpdf extraction failed for doc ${docId}:`, err instanceof Error ? err.message : err)
+          console.warn(`[carpeta-digital] unpdf extraction failed for doc ${docData.documentId}:`, err instanceof Error ? err.message : err)
           textPositionsByPage = new Map()
         }
 
@@ -426,12 +416,11 @@ export async function POST(request: NextRequest) {
         }
         currentPageCount += copiedPages.length
       } catch (err) {
-        console.error(`[carpeta-digital] Error processing doc ${docId}:`, err)
+        console.error(`[carpeta-digital] Error processing doc ${docData.docFilename}:`, err)
         const page = finalPdf.addPage([612, 792])
         page.drawText('PDF could not be loaded', { x: 50, y: 400, size: 14, font: fontRegular, color: rgb(0.5, 0, 0) })
         currentPageCount++
       }
-    }
   }
 
   // Add sustento section — with annotations for linked requirements

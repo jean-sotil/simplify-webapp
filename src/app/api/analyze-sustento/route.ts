@@ -86,8 +86,6 @@ export async function POST(request: NextRequest) {
 
   const model = llmConfig?.model || 'openai/gpt-4o'
   const temperature = llmConfig?.temperature ?? 0
-  const maxTextLen = llmConfig?.maxExactTextLength ?? 120
-  const maxContext = llmConfig?.maxContextChars ?? 50000
 
   // Build strictness instruction
   let strictnessRule = 'Mark as found if the document reasonably demonstrates the capability'
@@ -97,7 +95,7 @@ export async function POST(request: NextRequest) {
     strictnessRule = 'Mark as found if there is any reasonable indication of compliance. When in doubt, mark as found.'
   }
 
-  console.log(`[analyze-sustento] LLM Config: model=${model}, temp=${temperature}, strictness=${llmConfig?.strictness ?? 'balanced'}, maxTextLen=${maxTextLen}, maxContext=${maxContext}`)
+  console.log(`[analyze-sustento] LLM Config: model=${model}, temp=${temperature}, strictness=${llmConfig?.strictness ?? 'balanced'}`)
 
   // Combine all sustento text with page markers for LLM analysis
   const sustentoContent = docTexts.map(d => {
@@ -126,7 +124,10 @@ MATCHING RULES:
 - Partial or ambiguous mentions are NOT sufficient
 
 EVIDENCE RULES:
-- exactText MUST be a single sentence or clause (max ${maxTextLen} chars) - the most conclusive statement
+- exactText must be the SPECIFIC sentence or clause that proves compliance (max 80 chars)
+- Copy the text VERBATIM from the support letter - do NOT paraphrase
+- GOOD examples: "Se aclara y confirma que el controlador permite supervision de cableado."
+- BAD examples: long paragraphs combining multiple statements
 - Prefer sentences starting with "Se aclara y confirma..." when available
 - Include the page number (pageNum) where the evidence was found
 - Include the document filename
@@ -134,12 +135,9 @@ EVIDENCE RULES:
 Respond in JSON ONLY:
 {"results":[{"requirementId":"REQ-001","found":true,"documentFilename":"carta.pdf","pageNum":1,"exactText":"Se aclara y confirma que el controlador soporta..."}]}`
 
-  const userPrompt = `REQUIREMENTS TO VERIFY:\n${reqList}\n\nSUPPORT LETTER CONTENT:\n${sustentoContent.substring(0, maxContext)}`
+  const userPrompt = `REQUIREMENTS TO VERIFY:\n${reqList}\n\nSUPPORT LETTER CONTENT:\n${sustentoContent.substring(0, 50000)}`
 
-  console.log(`[analyze-sustento] System prompt strictness rule: "${strictnessRule}"`)
-  console.log(`[analyze-sustento] User prompt length: ${userPrompt.length} chars (max context: ${maxContext})`)
-  console.log(`[analyze-sustento] Requirements to verify: ${requirements.length}`)
-  console.log(`[analyze-sustento] Sustento content length: ${sustentoContent.length} chars (sent: ${Math.min(sustentoContent.length, maxContext)})`)
+  console.log(`[analyze-sustento] Requirements: ${requirements.length}, Content: ${sustentoContent.length} chars`)
 
   try {
     const apiKey = process.env.OPENAI_API_KEY

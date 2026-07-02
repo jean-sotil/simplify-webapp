@@ -6,16 +6,12 @@ export interface LlmConfig {
   model: string
   temperature: number
   strictness: 'strict' | 'balanced' | 'permissive'
-  maxExactTextLength: number
-  maxContextChars: number
 }
 
 const DEFAULT_CONFIG: LlmConfig = {
   model: 'openai/gpt-4o',
   temperature: 0,
   strictness: 'balanced',
-  maxExactTextLength: 120,
-  maxContextChars: 50000,
 }
 
 const MODELS = [
@@ -153,46 +149,6 @@ export function LlmConfigPanel({ projectId, isAdmin }: Props) {
                     <div className="mt-0.5" style={{ color: 'var(--color-mute)' }}>{opt.desc}</div>
                   </button>
                 ))}
-              </div>
-            </div>
-
-            {/* Max exactText length */}
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: 'var(--color-mute)' }}>
-                Max evidence length: {config.maxExactTextLength} chars
-              </label>
-              <input
-                type="range"
-                min="80"
-                max="300"
-                step="10"
-                value={config.maxExactTextLength}
-                onChange={e => setConfig({ ...config, maxExactTextLength: parseInt(e.target.value) })}
-                className="w-full"
-              />
-              <div className="flex justify-between text-[10px]" style={{ color: 'var(--color-mute)' }}>
-                <span>Short (precise)</span>
-                <span>Long (flexible)</span>
-              </div>
-            </div>
-
-            {/* Max context chars */}
-            <div>
-              <label className="text-xs font-medium block mb-1" style={{ color: 'var(--color-mute)' }}>
-                Max context: {(config.maxContextChars / 1000).toFixed(0)}k chars
-              </label>
-              <input
-                type="range"
-                min="20000"
-                max="80000"
-                step="5000"
-                value={config.maxContextChars}
-                onChange={e => setConfig({ ...config, maxContextChars: parseInt(e.target.value) })}
-                className="w-full"
-              />
-              <div className="flex justify-between text-[10px]" style={{ color: 'var(--color-mute)' }}>
-                <span>20k</span>
-                <span>80k</span>
               </div>
             </div>
           </div>

@@ -342,23 +342,34 @@ CONTEXT:
 - Requirements are extracted from ETT documents in Spanish
 - Vendor documents may be in Spanish or English (datasheets, spec sheets, certifications)
 - This is for a public infrastructure project (hospitals, schools, etc.)
+- Documents are typically structured as tables, bullet lists, or spec sheets
 
 MATCHING RULES:
 - Look for FUNCTIONAL EQUIVALENCE, not just exact text matches
 - "Puerto Ethernet 10/100/1000" matches "RJ-45 10/100/1000 Mbps Ethernet"
 - "Debe soportar 600 LBS" matches "Holding force: 600 lbs (2700N)"
-- Certifications like "UL o similar" match CE-DOC, CE-EMC, FCC, etc.
+- "Certificacion UL o similar" matches "CE, FCC, CB, UL294" or similar certifications
 - Technical specs often use abbreviations, different units, or alternate terminology
 - ${strictnessRule}
 
-EVIDENCE RULES:
-- Return the EXACT text fragment from the PDF (copy verbatim, do NOT paraphrase)
-- Keep exactText concise (1-2 lines preferred) but include enough text to demonstrate compliance
+EVIDENCE RULES (CRITICAL):
+- exactText must be the SPECIFIC cell value, bullet point, or single spec line that proves compliance
+- Copy the text VERBATIM from the document - do NOT paraphrase or combine multiple lines
+- GOOD examples of exactText:
+  * "Power supply can be 12VDC or 24VDC"
+  * "Supports TCP/IP, RS-485, Wiegand (W26/W34)"
+  * "Working temperature -20°C to +65°C (-4°F to 149°F)"
+  * "CE, FCC, CB, UL294"
+  * "1 RJ-45 10/100 Mbps self-adaptive"
+- BAD examples (too long, paraphrased):
+  * "The controller supports multiple protocols including TCP/IP and RS-485 for communication with card readers and other devices"
+  * "Power supply 100 ~ 240 VAC with backup battery design"
+- Maximum 80 characters for exactText
 - Include the page number where evidence was found
 - If you cannot find clear evidence, set found to false
 
 Respond in JSON ONLY:
-{"annotations":[{"requirementId":"REQ-001","found":true,"pageNum":2,"exactText":"single line from PDF","confidence":0.85}]}`
+{"annotations":[{"requirementId":"REQ-001","found":true,"pageNum":2,"exactText":"Power supply can be 12VDC or 24VDC","confidence":0.85}]}`
 
       const userPrompt = `TECHNICAL REQUIREMENTS TO VERIFY:\n${reqList}\n\nDOCUMENT CONTENT:\n${pageTexts}`
 
