@@ -86,13 +86,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'No processed documents in analysis' }, { status: 400 })
   }
 
-  // 2. Get project info
+  // 2. Get project info and LLM config
   const { data: project } = await supabaseAdmin
     .from('projects')
-    .select('name')
+    .select('name, metadata')
     .eq('id', projectId)
     .single()
   const projectName = project?.name ?? 'Analysis'
+  const llmConfig = ((project?.metadata ?? {}) as Record<string, unknown>).llmConfig as { minMatchWords?: number } | undefined
+  const minMatchWords = llmConfig?.minMatchWords ?? 1
 
   // 3. Get sustento documents linked to requirements via sustento_links
   // Only include sustento documents when generating from the sustento page
@@ -369,7 +371,7 @@ export async function POST(request: NextRequest) {
             // Single annotation mechanism: find exactText in text items
             if (ann.exactText && textItems.length > 0) {
               const searchWords = ann.exactText.toLowerCase().split(/\s+/).filter(w => w.length >= 4).slice(0, 8)
-              const minWordsRequired = 2 // Fixed minimum — any item with 2+ matching words qualifies
+              const minWordsRequired = minMatchWords // From LLM config panel
 
               // Find the single best matching text item (highest word overlap)
               let bestItem: { x: number; y: number; width: number; height: number; key: string; score: number } | null = null
@@ -574,7 +576,7 @@ export async function POST(request: NextRequest) {
               // Use the last sentence if available (usually the most specific/conclusive)
               const targetSentence = sentences.length > 1 ? sentences[sentences.length - 1] : sentences[0] || exactLower.substring(0, 60)
               const targetWords = targetSentence.split(/\s+/).filter(w => w.length >= 4).slice(0, 6)
-              const minWords = 2 // Fixed minimum, same as analysis annotations
+              const minWords = minMatchWords // From LLM config panel
 
               // Find the single best matching text item
               let bestItem: { x: number; y: number; width: number; height: number; key: string } | null = null

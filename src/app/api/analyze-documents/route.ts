@@ -164,7 +164,123 @@ export async function POST(request: NextRequest) {
     }).eq('id', analysisId)
   }
 
-  // Step 2: Smart routing — use chunk text to determine which reqs are relevant for each doc
+  // Step 2: Smart classification — use LLM to determine which document belongs to which partida
+  // This prevents sending irrelevant requirements to wrong documents
+  const firstDocReqs = documents[0]?.matchedRequirements || []
+  if (firstDocReqs.length > 0 && documents.length > 1) {
+    await updateStage('Classifying documents by partida...')
+    console.log('[analyze] Starting document classification...')
+    
+    try {
+      // Get unique partidas from requirements
+      const partidas = [...new Set(firstDocReqs.map(r => `${r.partida}: ${r.partidaDesc}`))]
+
+      // Fetch first-page text for each doc
+      const docFirstPages: Array<{ filename: string; documentId: string; firstPageText: string }> = []
+      for (const doc of documents) {
+        try {
+          const headers: Record<string, string> = {}
+          if (process.env.BLOB_READ_WRITE_TOKEN) {
+            headers['Authorization'] = `Bearer ${process.env.BLOB_READ_WRITE_TOKEN}`
+          }
+          const res = await fetch(doc.originalFileUrl, { headers })
+          if (res.ok) {
+            const buffer = await res.arrayBuffer()
+            const { extractText } = await import('unpdf')
+            const result = await extractText(new Uint8Array(buffer), { mergePages: false })
+            const firstPage = (result.text[0] || '').substring(0, 500)
+            docFirstPages.push({ filename: doc.filename, documentId: doc.documentId, firstPageText: firstPage })
+          }
+        } catch {
+          docFirstPages.push({ filename: doc.filename, documentId: doc.documentId, firstPageText: doc.filename })
+        }
+      }
+
+      // Ask LLM to classify
+      const classificationPrompt = `You are classifying technical documents for a Peruvian public procurement project.
+
+Given these PARTIDAS (equipment categories):
+${partidas.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+And these DOCUMENTS (vendor datasheets):
+${docFirstPages.map((d, i) => `${i + 1}. "${d.filename}" - First page: "${d.firstPageText.substring(0, 200)}"`).join('\n')}
+
+For each document, determine which partida(s) it belongs to. A document belongs to a partida if it is the actual product/device described by that partida.
+
+IMPORTANT: If a document is NOT related to ANY partida (e.g., a video capture card for a security/access control project), mark it as "none".
+
+Respond in JSON ONLY:
+{"classifications":[{"filename":"doc.pdf","partidas":["06.11.01.01","06.11.01.04"]},{"filename":"unrelated.pdf","partidas":[]}]}`
+
+      const apiKey = openrouterKey || process.env.OPENAI_API_KEY
+      const { data: projectData } = await supabaseAdmin
+        .from('projects')
+        .select('metadata')
+        .eq('id', projectId)
+        .single()
+      const llmConfig = ((projectData?.metadata ?? {}) as Record<string, unknown>).llmConfig as {
+        model?: string; temperature?: number
+      } | undefined
+      const classModel = llmConfig?.model || 'openai/gpt-4o'
+
+      const classResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: classModel,
+          temperature: 0,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: classificationPrompt },
+            { role: 'user', content: 'Classify the documents.' },
+          ],
+        }),
+      })
+
+      if (classResponse.ok) {
+        const classResult = await classResponse.json()
+        const classContent = classResult.choices[0].message.content
+        let parsed: { classifications?: Array<{ filename: string; partidas: string[] }> }
+        try {
+          parsed = JSON.parse(classContent)
+        } catch {
+          parsed = JSON.parse(classContent.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim())
+        }
+
+        const classifications = parsed.classifications || []
+        console.log(`[analyze] Classification results:`)
+        
+        // Build a map: documentId -> allowed partidas
+        const docPartidaMap = new Map<string, Set<string>>()
+        for (const cls of classifications) {
+          const doc = docFirstPages.find(d => d.filename === cls.filename)
+          if (doc) {
+            docPartidaMap.set(doc.documentId, new Set(cls.partidas))
+            console.log(`[analyze]   ${cls.filename}: ${cls.partidas.length > 0 ? cls.partidas.join(', ') : 'EXCLUDED (no match)'}`)
+          }
+        }
+
+        // Filter: only EXCLUDE documents that are clearly not related (empty partidas)
+        // Do NOT filter requirements within a document — let the analysis LLM decide
+        for (const doc of documents) {
+          const allowedPartidas = docPartidaMap.get(doc.documentId)
+          if (allowedPartidas && allowedPartidas.size === 0) {
+            // Document is not related to any partida — exclude all requirements
+            doc.matchedRequirements = []
+            console.log(`[analyze] ${doc.filename}: EXCLUDED — no relevant partidas`)
+          } else if (allowedPartidas) {
+            console.log(`[analyze] ${doc.filename}: classified for partidas: ${[...allowedPartidas].join(', ')} (keeping all ${doc.matchedRequirements.length} reqs)`)
+          }
+        }
+      } else {
+        console.warn('[analyze] Classification LLM call failed, proceeding without classification')
+      }
+    } catch (classErr) {
+      console.error('[analyze] Classification failed:', classErr instanceof Error ? classErr.message : classErr)
+    }
+  }
+
+  // Step 3: Smart routing — use chunk text to determine which reqs are relevant for each doc
   if (documents.some(d => d.matchedRequirements.length > 10)) {
     console.log('[analyze] Starting routing optimization...')
     try {

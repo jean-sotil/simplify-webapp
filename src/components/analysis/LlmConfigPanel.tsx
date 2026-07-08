@@ -6,12 +6,14 @@ export interface LlmConfig {
   model: string
   temperature: number
   strictness: 'strict' | 'balanced' | 'permissive'
+  minMatchWords: number
 }
 
 const DEFAULT_CONFIG: LlmConfig = {
   model: 'openai/gpt-4o',
   temperature: 0,
   strictness: 'balanced',
+  minMatchWords: 1,
 }
 
 const MODELS = [
@@ -150,6 +152,26 @@ export function LlmConfigPanel({ projectId, isAdmin }: Props) {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Min match words */}
+          <div className="mt-4">
+            <label className="text-xs font-medium block mb-1" style={{ color: 'var(--color-mute)' }}>
+              Min match words: {config.minMatchWords}
+            </label>
+            <input
+              type="range"
+              min="1"
+              max="4"
+              step="1"
+              value={config.minMatchWords}
+              onChange={e => setConfig({ ...config, minMatchWords: parseInt(e.target.value) })}
+              className="w-full"
+            />
+            <div className="flex justify-between text-[10px]" style={{ color: 'var(--color-mute)' }}>
+              <span>1 (more annotations)</span>
+              <span>4 (precise only)</span>
             </div>
           </div>
 
