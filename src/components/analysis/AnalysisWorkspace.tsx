@@ -45,6 +45,8 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
   const [allDocs, setAllDocs] = useState<AvailableDoc[]>([])
   const [analysisRunning, setAnalysisRunning] = useState(false)
   const [triggerError, setTriggerError] = useState<string | null>(null)
+  // Local override for analysis result — allows immediate log display after trigger
+  const [localAnalysis, setLocalAnalysis] = useState<AnalysisResultData | null>(null)
 
   // Load analysis documents for this project
   useEffect(() => { loadAnalysisDocs() }, [projectId])
@@ -94,12 +96,14 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
   const availableProviders = allDocs.filter(d => (d.document_type === 'hardware' || d.document_type === 'software') && !addedDocIds.has(d.id))
 
   const canRunAnalysis = ettDocs.length > 0 && providerDocs.length > 0
-  const isAnalysisInProgress = analysisRunning || initialAnalysis?.status === 'processing' || initialAnalysis?.status === 'pending'
+  const activeAnalysis = localAnalysis ?? initialAnalysis
+  const isAnalysisInProgress = analysisRunning || activeAnalysis?.status === 'processing' || activeAnalysis?.status === 'pending'
 
   // Reset analysisRunning when the analysis completes
   useEffect(() => {
     if (initialAnalysis?.status === 'completed' || initialAnalysis?.status === 'failed') {
       setAnalysisRunning(false)
+      setLocalAnalysis(null) // Clear local override, use server data
     }
   }, [initialAnalysis?.status])
 
@@ -136,7 +140,20 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
         setTriggerError(typeof result.error === 'string' ? result.error : 'Error')
         setAnalysisRunning(false)
       } else {
-        // Analysis triggered — keep button disabled, page will refresh when complete
+        // Immediately set local analysis state so logs panel shows up right away
+        if ('data' in result && result.data) {
+          const newAnalysis: AnalysisResultData = {
+            id: result.data.id,
+            status: result.data.status as 'processing',
+            analysis_metadata: result.data.analysis_metadata as Record<string, unknown> | null,
+            zip_file_url: null,
+            analysis_carpeta_digital_url: null,
+            sustento_carpeta_digital_url: null,
+            completed_at: null,
+            error_message: null,
+          }
+          setLocalAnalysis(newAnalysis)
+        }
         router.refresh()
       }
     })
@@ -199,7 +216,7 @@ export function AnalysisWorkspace({ projectId, projectName: _projectName, ettDoc
       </section>
 
       {/* Section 3: Analysis Results */}
-      <AnalysisResults result={initialAnalysis} projectId={projectId} />
+      <AnalysisResults result={localAnalysis ?? initialAnalysis} projectId={projectId} />
 
     </div>
   )

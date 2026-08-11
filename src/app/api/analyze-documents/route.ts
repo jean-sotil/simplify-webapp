@@ -75,21 +75,53 @@ export async function POST(request: NextRequest) {
   let ettTotalRequirements = 0
   let ettAllRequirements: Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> = []
 
+  // Helper to update processing stage in DB (accumulates as a log)
+  const stageLog: Array<{ time: string; message: string }> = []
+  async function updateStage(stage: string) {
+    if (!analysisId) return
+    console.log(`[analyze] [${analysisId.substring(0, 8)}] Stage: ${stage}`)
+    stageLog.push({ time: new Date().toISOString(), message: stage })
+    await supabaseAdmin.from('analysis_results').update({
+      analysis_metadata: {
+        stage,
+        stageLog,
+        updatedAt: new Date().toISOString(),
+      },
+    }).eq('id', analysisId)
+  }
+
   // Extract requirements from ETT document directly from DB
   // This bypasses any Server Action caching issues
   if (projectId) {
+    await updateStage('Extracting requirements from ETT...')
     console.log(`[analyze] Attempting ETT extraction for project: ${projectId}`)
     try {
-      // Get all documents attached to this project
-      const { data: projectDocs, error: pdError } = await supabaseAdmin
-        .from('project_documents')
+      // Get all documents attached to this project (try project_analysis_documents first, fallback to project_documents)
+      let docIds: string[] = []
+      
+      const { data: analysisDocRows, error: adError } = await supabaseAdmin
+        .from('project_analysis_documents')
         .select('document_id')
         .eq('project_id', projectId)
 
-      console.log(`[analyze] project_documents query: ${projectDocs?.length ?? 0} rows, error: ${pdError?.message ?? 'none'}`)
+      console.log(`[analyze] project_analysis_documents query: ${analysisDocRows?.length ?? 0} rows, error: ${adError?.message ?? 'none'}`)
 
-      if (projectDocs && projectDocs.length > 0) {
-        const docIds = projectDocs.map(pd => pd.document_id)
+      if (analysisDocRows && analysisDocRows.length > 0) {
+        docIds = analysisDocRows.map(pd => pd.document_id)
+      } else {
+        // Fallback to legacy project_documents table
+        const { data: projectDocs, error: pdError } = await supabaseAdmin
+          .from('project_documents')
+          .select('document_id')
+          .eq('project_id', projectId)
+
+        console.log(`[analyze] project_documents fallback query: ${projectDocs?.length ?? 0} rows, error: ${pdError?.message ?? 'none'}`)
+        if (projectDocs && projectDocs.length > 0) {
+          docIds = projectDocs.map(pd => pd.document_id)
+        }
+      }
+
+      if (docIds.length > 0) {
         const { data: ettDocs, error: ettError } = await supabaseAdmin
           .from('documents')
           .select('id, extracted_text, document_type')
@@ -99,21 +131,56 @@ export async function POST(request: NextRequest) {
         console.log(`[analyze] ETT query: ${ettDocs?.length ?? 0} docs found, error: ${ettError?.message ?? 'none'}`)
 
         if (ettDocs && ettDocs.length > 0) {
-          // Extract requirements from ALL ETT documents
+          // Extract requirements from ALL ETT documents using LLM
           const allReqs: Array<{ requirementId: string; text: string; partida: string; partidaDesc: string }> = []
           let reqCounter = 0
+
+          // Load LLM config
+          const { data: projectConf } = await supabaseAdmin
+            .from('projects')
+            .select('metadata')
+            .eq('id', projectId)
+            .single()
+          const llmConf = ((projectConf?.metadata ?? {}) as Record<string, unknown>).llmConfig as {
+            model?: string; temperature?: number
+          } | undefined
+          const extractionModel = llmConf?.model || 'openai/gpt-4o'
+          const apiKey = openrouterKey || process.env.OPENAI_API_KEY
+
           for (const ettDoc of ettDocs) {
             if (!ettDoc.extracted_text) continue
-            const reqs = extractETTRequirements(ettDoc.extracted_text)
-            // Re-number requirements to avoid duplicates across ETTs
-            for (const req of reqs) {
-              reqCounter++
-              allReqs.push({
-                ...req,
-                requirementId: `REQ-${String(reqCounter).padStart(3, '0')}`,
-              })
+            const ettText = ettDoc.extracted_text as string
+
+            // Try regex first (fast, free)
+            const regexReqs = extractETTRequirements(ettText)
+            console.log(`[analyze] ETT ${ettDoc.id.substring(0, 8)}: regex extracted ${regexReqs.length} requirements (${ettText.length} chars)`)
+
+            if (regexReqs.length >= 5) {
+              // Regex worked well enough, use its results
+              for (const req of regexReqs) {
+                reqCounter++
+                allReqs.push({ ...req, requirementId: `REQ-${String(reqCounter).padStart(3, '0')}` })
+              }
+            } else {
+              // Regex failed — use LLM to extract requirements
+              console.log(`[analyze] ETT ${ettDoc.id.substring(0, 8)}: regex insufficient, using LLM extraction...`)
+              await updateStage(`Extracting requirements with AI (${ettText.length} chars)...`)
+              try {
+                const llmReqs = await extractRequirementsWithLLM(ettText, extractionModel, apiKey!)
+                console.log(`[analyze] ETT ${ettDoc.id.substring(0, 8)}: LLM extracted ${llmReqs.length} requirements`)
+                for (const req of llmReqs) {
+                  reqCounter++
+                  allReqs.push({ ...req, requirementId: `REQ-${String(reqCounter).padStart(3, '0')}` })
+                }
+              } catch (llmErr) {
+                console.error(`[analyze] ETT ${ettDoc.id.substring(0, 8)}: LLM extraction failed:`, llmErr instanceof Error ? llmErr.message : llmErr)
+                // Use whatever regex gave us as fallback
+                for (const req of regexReqs) {
+                  reqCounter++
+                  allReqs.push({ ...req, requirementId: `REQ-${String(reqCounter).padStart(3, '0')}` })
+                }
+              }
             }
-            console.log(`[analyze] ETT ${ettDoc.id.substring(0, 8)}: extracted ${reqs.length} requirements (text: ${ettDoc.extracted_text.length} chars)`)
           }
           console.log(`[analyze] Total extracted ${allReqs.length} requirements from ${ettDocs.length} ETT(s)`)
 
@@ -122,7 +189,6 @@ export async function POST(request: NextRequest) {
 
           if (allReqs.length > 0) {
             // Send all requirements to all documents
-            // (routing optimization deferred due to bundler compatibility issues)
             const reqsForDocs = allReqs.map((r) => ({
               requirementId: r.requirementId,
               text: r.text,
@@ -140,28 +206,13 @@ export async function POST(request: NextRequest) {
           console.log('[analyze] No ETT document with extracted_text found')
         }
       } else {
-        console.log('[analyze] No project_documents found for this project')
+        console.log('[analyze] No documents found for this project in project_analysis_documents or project_documents')
       }
     } catch (err) {
       console.error('[analyze] ETT extraction FAILED:', err instanceof Error ? err.message : err, err instanceof Error ? err.stack : '')
     }
   } else {
     console.log('[analyze] No projectId provided, skipping ETT extraction')
-  }
-
-  // Helper to update processing stage in DB (accumulates as a log)
-  const stageLog: Array<{ time: string; message: string }> = []
-  async function updateStage(stage: string) {
-    if (!analysisId) return
-    console.log(`[analyze] [${analysisId.substring(0, 8)}] Stage: ${stage}`)
-    stageLog.push({ time: new Date().toISOString(), message: stage })
-    await supabaseAdmin.from('analysis_results').update({
-      analysis_metadata: {
-        stage,
-        stageLog,
-        updatedAt: new Date().toISOString(),
-      },
-    }).eq('id', analysisId)
   }
 
   // Step 2: Smart classification — use LLM to determine which document belongs to which partida
@@ -678,7 +729,91 @@ Respond in JSON ONLY:
 
 
 // ---------------------------------------------------------------------------
-// Inline ETT requirement extraction (avoids server-only import issues)
+// LLM-based ETT requirement extraction
+// ---------------------------------------------------------------------------
+
+async function extractRequirementsWithLLM(
+  ettText: string,
+  model: string,
+  apiKey: string,
+): Promise<Array<{ text: string; partida: string; partidaDesc: string }>> {
+  // Truncate if text is very long (avoid token limits)
+  const maxChars = 30000
+  const textToSend = ettText.length > maxChars ? ettText.substring(0, maxChars) : ettText
+
+  const systemPrompt = `You are an expert in Peruvian public procurement documents (ETT - Especificación Técnica de Términos / Especificaciones Técnicas).
+
+Your task: Extract ALL technical requirements from the ETT document text.
+
+WHAT IS A REQUIREMENT:
+- Any technical specification that a vendor/product must satisfy
+- Hardware specs: processor, memory, storage, ports, voltage, temperature, certifications
+- Software specs: licenses, protocols, compatibility, features
+- Performance specs: speed, capacity, resolution, weight
+- Compliance: certifications (UL, CE, FCC), standards (IP65, NFPA), norms
+
+WHAT IS NOT A REQUIREMENT:
+- Administrative text (project name, dates, general descriptions)
+- Table headers or section titles (unless they contain a spec)
+- Page numbers, footers, headers
+- General statements without a measurable spec
+
+GROUPING BY PARTIDA:
+- If the document has numbered sections (like 06.11.01.01, 2.3.1, Item 1, etc.), use those as "partida"
+- Group requirements under their respective section/partida
+- If no clear sections exist, use descriptive categories (e.g., "IMPRESORA", "LAPTOP", "MONITOR")
+
+OUTPUT FORMAT (JSON only):
+{"requirements":[{"text":"Procesador Intel Core i5 de 13va generación o superior","partida":"2.1","partidaDesc":"LAPTOP"},{"text":"Memoria RAM 16GB DDR5","partida":"2.1","partidaDesc":"LAPTOP"}]}
+
+RULES:
+- Extract EVERY technical requirement, even if it seems minor
+- Keep the original Spanish text exactly as written
+- Each requirement should be a single spec (split combined lines)
+- Typical ETTs have 20-100+ requirements depending on complexity
+- Do NOT skip requirements just because they repeat across sections`
+
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0,
+      response_format: { type: 'json_object' },
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: `Extract all technical requirements from this ETT document:\n\n${textToSend}` },
+      ],
+    }),
+  })
+
+  if (!response.ok) {
+    throw new Error(`LLM extraction failed: ${response.status} ${response.statusText}`)
+  }
+
+  const result = await response.json()
+  const content = result.choices[0].message.content
+
+  let parsed: { requirements?: Array<{ text: string; partida: string; partidaDesc: string }> }
+  try {
+    parsed = JSON.parse(content)
+  } catch {
+    const cleaned = content.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim()
+    parsed = JSON.parse(cleaned)
+  }
+
+  const requirements = parsed.requirements || []
+
+  // Filter out very short entries (< 10 chars) that might be noise
+  return requirements.filter(r => r.text && r.text.length >= 10)
+}
+
+
+// ---------------------------------------------------------------------------
+// Inline ETT requirement extraction (regex-based fallback)
 // ---------------------------------------------------------------------------
 
 const SPEC_STARTERS = [
@@ -774,6 +909,79 @@ function extractETTRequirements(rawText: string): Array<{ requirementId: string;
   }
 
   flush()
+  
+  // Fallback: if no requirements were extracted (no partida patterns found),
+  // try extracting ALL spec-like lines without requiring a partida header
+  if (requirements.length === 0 && lines.length > 5) {
+    console.log(`[extractETTRequirements] Fallback: no partida patterns found, extracting all spec lines`)
+    let fallbackCounter = 0
+    let fallbackLines: string[] = []
+
+    function flushFallback() {
+      if (fallbackLines.length === 0) return
+      const text = fallbackLines.join('\n').trim()
+      if (text.length < 15) { fallbackLines = []; return }
+      fallbackCounter++
+      requirements.push({
+        requirementId: `REQ-${String(fallbackCounter).padStart(3, '0')}`,
+        text,
+        partida: 'GENERAL',
+        partidaDesc: 'Especificaciones Técnicas',
+      })
+      fallbackLines = []
+    }
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      if (ETT_NOISE.some(p => p.test(trimmed))) continue
+      // Skip short/header-like lines
+      if (/^[A-Z\u00C0-\u00DC]{4,}(\s+[A-Z\u00C0-\u00DC]+)*$/.test(trimmed)) continue
+      if (trimmed.length < 15) continue
+
+      // Check if it's a partida header — use as category
+      const partidaMatch = trimmed.match(ETT_PARTIDA)
+      if (partidaMatch) {
+        flushFallback()
+        // Update partida for subsequent requirements
+        const partida = partidaMatch[1]
+        const desc = partidaMatch[2].trim()
+        // Update the last requirement's partida or set for next ones
+        requirements.forEach(r => { if (r.partida === 'GENERAL') { r.partida = partida; r.partidaDesc = desc } })
+        continue
+      }
+
+      // Bullet-prefixed lines start new requirement
+      if (/^\s*[•\-]\s+|^\s*o\s{2,}|^\s*\d+[.)]\s+/.test(trimmed)) {
+        flushFallback()
+        const cleaned = trimmed
+          .replace(/^\s*[•\-]\s+/, '')
+          .replace(/^\s*o\s{2,}/, '')
+          .replace(/^\s*\d+[.)]\s+/, '')
+        fallbackLines.push(cleaned)
+        continue
+      }
+
+      // Spec starter patterns start new requirement
+      if (SPEC_STARTERS.some(p => p.test(trimmed))) {
+        flushFallback()
+        fallbackLines.push(trimmed)
+        continue
+      }
+
+      // Continuation of previous
+      if (fallbackLines.length > 0 && trimmed.length < 250) {
+        fallbackLines.push(trimmed)
+      } else if (trimmed.length >= 20) {
+        // New standalone requirement-like line
+        flushFallback()
+        fallbackLines.push(trimmed)
+      }
+    }
+    flushFallback()
+    console.log(`[extractETTRequirements] Fallback extracted ${requirements.length} requirements`)
+  }
+
   return requirements
 }
 
